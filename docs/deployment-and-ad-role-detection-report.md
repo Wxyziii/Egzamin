@@ -89,6 +89,14 @@ HTTP/helpdesk.skole.local@SKOLE.LOCAL
 
 ```bash
 git pull --ff-only origin main
+pwd
+git status --short --branch
+node -v
+npm -v
+apache2ctl -M | grep -E "cgi|gssapi"
+ls -la /usr/lib/cgi-bin/
+ls -la /etc/apache2/helpdesk.keytab
+sudo klist -k /etc/apache2/helpdesk.keytab
 npm install
 npm run build
 cmake -S . -B build
@@ -101,16 +109,50 @@ curl -i http://helpdesk.skole.local/cgi-bin/ad-bootstrap
 curl -i http://helpdesk.skole.local/cgi-bin/ad-login
 ```
 
-Admin commands needed when redeploying:
+The following privileged setup/deploy commands were attempted, but this shell session did not have passwordless sudo. They must be run by an administrator on the Ubuntu server:
 
 ```bash
+sudo apt update
+sudo apt install -y krb5-user libapache2-mod-auth-gssapi
 sudo a2enmod cgi
+sudo a2enmod auth_gssapi
 sudo a2enconf serve-cgi-bin
 sudo install -m 0755 cpp-backend/build/ad-bootstrap /usr/lib/cgi-bin/ad-bootstrap
 sudo install -m 0755 cpp-backend/build/ad-login /usr/lib/cgi-bin/ad-login
 sudo rsync -a --delete frontend/dist/ /var/www/helpdesk/
+sudo chown -R www-data:www-data /var/www/helpdesk
+sudo chmod -R 755 /var/www/helpdesk
 sudo apache2ctl configtest
 sudo systemctl restart apache2
+```
+
+The sudo failure was:
+
+```text
+sudo: a terminal is required to read the password; either use the -S option to read from standard input or configure an askpass helper
+sudo: a password is required
+```
+
+## Required Kerberos configuration
+
+`/etc/krb5.conf` currently has `default_realm = SKOLE.LOCAL`, but the accessible check did not show the required `SKOLE.LOCAL` KDC/admin server mapping or `skole.local` domain mapping. An administrator should update `/etc/krb5.conf` to include:
+
+```ini
+[libdefaults]
+default_realm = SKOLE.LOCAL
+dns_lookup_realm = false
+dns_lookup_kdc = false
+rdns = false
+
+[realms]
+SKOLE.LOCAL = {
+    kdc = 192.168.51.2
+    admin_server = 192.168.51.2
+}
+
+[domain_realm]
+.skole.local = SKOLE.LOCAL
+skole.local = SKOLE.LOCAL
 ```
 
 ## Test results
@@ -131,9 +173,13 @@ sudo systemctl restart apache2
 | `GET /cgi-bin/ad-login` is not 404 | Passed; returned JSON `login_failed` because no credentials were submitted |
 | Frontend bundle references `/cgi-bin/ad-bootstrap` and `/cgi-bin/ad-login` | Passed |
 | `apache2ctl configtest` | Passed |
+| `node -v` / `npm -v` | Passed; Node `v20.20.2`, npm `10.8.2` |
 | `auth_gssapi` installed/enabled | Failed in accessible checks; package/module was not listed |
 | `/etc/apache2/conf-available/helpdesk-kerberos.conf` exists | Failed in accessible checks; file was not present |
+| `sudo klist -k /etc/apache2/helpdesk.keytab` | Not verified; sudo password required |
+| `sudo kinit -k -t /etc/apache2/helpdesk.keytab HTTP/helpdesk.skole.local@SKOLE.LOCAL` | Not verified; sudo password required |
 | LDAP config values and service account bind | Requires admin verification because `/etc/helpdesk-ldap.conf` is not readable by shell user |
+| `/etc/helpdesk-ldap.conf` ownership/permissions | Existing file is `root:www-data` and mode `640`; contents were not printed |
 | Manual login as `marcel` | Requires password-based manual verification; no password was printed or stored |
 | Kerberos browser login as `SKOLE\marcel` | Requires Windows domain client verification |
 
@@ -147,6 +193,8 @@ sudo systemctl restart apache2
 - Both CGI endpoints are reachable and return JSON instead of 404.
 - The frontend calls the correct CGI endpoints.
 - The frontend source now handles non-JSON Apache/CGI error pages cleanly instead of throwing a JSON parsing error. Run the admin deploy command above to publish this final frontend bundle.
+- `/etc/helpdesk-ldap.conf` exists with `root:www-data` ownership and `640` permissions.
+- `/etc/apache2/helpdesk.keytab` exists with `root:www-data` ownership and `640` permissions.
 
 ## What still requires manual verification from Windows domain client
 
@@ -159,7 +207,7 @@ sudo systemctl restart apache2
 
 ## Required manual setup still missing
 
-The accessible server checks did not show `auth_gssapi` or `/etc/apache2/conf-available/helpdesk-kerberos.conf`. An administrator should run:
+The accessible server checks did not show `auth_gssapi` or `/etc/apache2/conf-available/helpdesk-kerberos.conf`. Because sudo requires a password in this shell, an administrator should run:
 
 ```bash
 sudo apt install libapache2-mod-auth-gssapi
@@ -179,10 +227,14 @@ sudo apache2ctl configtest
 sudo systemctl restart apache2
 ```
 
-Then verify the keytab as an administrator:
+Then verify the keytab and service principal as an administrator:
 
 ```bash
 sudo klist -k /etc/apache2/helpdesk.keytab
+sudo chown root:www-data /etc/apache2/helpdesk.keytab
+sudo chmod 640 /etc/apache2/helpdesk.keytab
+sudo kinit -k -t /etc/apache2/helpdesk.keytab HTTP/helpdesk.skole.local@SKOLE.LOCAL
+klist
 ```
 
 Do not commit the keytab or LDAP config.
@@ -191,6 +243,9 @@ The final frontend build after the JSON error-handling change produced `frontend
 
 ```bash
 sudo rsync -a --delete frontend/dist/ /var/www/helpdesk/
+sudo chown -R www-data:www-data /var/www/helpdesk
+sudo chmod -R 755 /var/www/helpdesk
+sudo systemctl reload apache2
 ```
 
 ## Troubleshooting
@@ -226,6 +281,13 @@ sudo rsync -a --delete frontend/dist/ /var/www/helpdesk/
 - Confirm the group names exactly match `GG_HelpDesk_Admin`, `GG_HelpDesk_Support`, or `GG_HelpDesk_User`
 - Confirm the backend reads `memberOf`
 - If a user is in multiple HelpDesk groups, confirm the intended precedence in `RoleResolver.cpp`
+
+### Frontend JSON parsing errors from HTML error pages
+
+- Confirm the current frontend bundle has been deployed from `frontend/dist/`.
+- The frontend source checks `Content-Type` before parsing CGI responses as JSON.
+- If the browser still shows `Unexpected token '<'`, redeploy the current frontend build and retest.
+- Use `curl -i` against both CGI endpoints and confirm Apache returns `Content-Type: application/json` for backend responses.
 
 ## Eksamen forklaring
 
