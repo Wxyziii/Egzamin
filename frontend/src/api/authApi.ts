@@ -21,7 +21,7 @@ export async function bootstrapAuth(): Promise<AuthResponse> {
   }
 
   const response = await fetch(BOOTSTRAP_URL, { headers: { Accept: 'application/json' } });
-  return response.json();
+  return parseAuthResponse(response, 'Automatic AD login failed.');
 }
 
 export async function manualLogin(username: string, password: string): Promise<AuthResponse> {
@@ -47,5 +47,24 @@ export async function manualLogin(username: string, password: string): Promise<A
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ username, password })
   });
-  return response.json();
+  return parseAuthResponse(response, 'Manual AD login failed.');
+}
+
+async function parseAuthResponse(response: Response, fallbackMessage: string): Promise<AuthResponse> {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    return {
+      status: 'ad_error',
+      message: `${fallbackMessage} The server returned ${response.status} instead of JSON.`
+    };
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    return {
+      status: 'ad_error',
+      message: `${fallbackMessage} The server returned invalid JSON.`
+    };
+  }
 }
