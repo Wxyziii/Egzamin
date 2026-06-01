@@ -1,0 +1,381 @@
+You are working on my HelpDesk exam project.
+
+This is not planning mode. Make the changes, test them, document everything, commit, and push.
+
+Goal:
+Use traditional/manual AD login as the main login method and add a small C++ audit logging feature to the CGI backend.
+
+The app should no longer try automatic Kerberos/SSO login. Users should log in with AD username and password. The backend should authenticate against Active Directory through LDAP, detect the user role from AD groups, and log login attempts to an audit log.
+
+Environment:
+
+* AD domain: skole.local
+* Domain Controller / DNS / LDAP: 192.168.51.2
+* Ubuntu helpdesk server: 192.168.51.3
+* Website: http://helpdesk.skole.local
+* Frontend source: /opt/helpdesk-app/frontend
+* C++ CGI backend source: /opt/helpdesk-app/cpp-backend
+* Frontend deploy path: /var/www/helpdesk
+* CGI deploy path: /usr/lib/cgi-bin
+* LDAP config: /etc/helpdesk-ldap.conf
+* Manual login endpoint:
+  /cgi-bin/ad-login
+* Old automatic login endpoint:
+  /cgi-bin/ad-bootstrap
+* AD groups:
+
+  * GG_HelpDesk_Admin -> admin
+  * GG_HelpDesk_Support -> support
+  * GG_HelpDesk_User -> user
+* Test user:
+
+  * marcel
+  * expected role: support
+
+Critical security rules:
+
+* Never commit secrets.
+* Never commit /etc/helpdesk-ldap.conf.
+* Never commit /etc/apache2/helpdesk.keytab.
+* Never commit passwords, keytabs, .env files with secrets, or copied system configs.
+* Do not print real passwords in documentation.
+* If documentation mentions secrets, use placeholders.
+
+Tasks:
+
+1. Inspect project state.
+   Run:
+   pwd
+   git status
+   find . -maxdepth 3 -type f | sort
+
+Identify:
+
+* frontend login/auth files
+* C++ CGI backend files
+* CMakeLists.txt
+* documentation folder
+
+2. Revert frontend to traditional AD login only.
+   Search frontend for:
+
+* ad-bootstrap
+* bootstrap
+* auto login
+* automatic login
+* kerberos
+* REMOTE_USER
+* negotiate
+
+Update the frontend so:
+
+* It does NOT automatically call /cgi-bin/ad-bootstrap on page load.
+* It shows the normal login form first.
+* It uses only POST /cgi-bin/ad-login for authentication.
+* The login form sends AD username and password.
+* The role comes only from the backend response.
+* The role is not hardcoded in frontend.
+* localStorage must not be the source of truth for role.
+* Failed login shows a clean visible error message.
+* Non-JSON Apache/CGI responses should not crash the frontend with “Unexpected token '<'”.
+
+Expected login flow:
+
+1. User enters username and password.
+
+2. Frontend calls /cgi-bin/ad-login.
+
+3. Backend validates against AD/LDAP.
+
+4. Backend reads memberOf.
+
+5. Backend returns role: user, support, or admin.
+
+6. Frontend shows the correct UI.
+
+7. Disable automatic Kerberos login from active Apache flow.
+   If this config is enabled:
+   helpdesk-kerberos.conf
+
+Disable it:
+sudo a2disconf helpdesk-kerberos || true
+
+Then:
+sudo apache2ctl configtest
+sudo systemctl restart apache2
+
+Do not delete keytab files.
+Do not commit keytab files.
+The old /cgi-bin/ad-bootstrap may remain deployed, but the frontend must not depend on it.
+
+4. Keep /cgi-bin/ad-bootstrap harmless.
+   If the C++ backend currently has ad-bootstrap, keep it safe and simple.
+
+Preferred behavior:
+
+* It should return JSON saying manual login is required.
+* It should not trigger Kerberos 401 after helpdesk-kerberos config is disabled.
+
+Example response:
+{
+"status": "manual_login_required",
+"message": "Automatic login is disabled. Use manual AD login."
+}
+
+5. Add C++ audit logging feature.
+   Add a small C++ audit logger to the C++ CGI backend.
+
+Create:
+cpp-backend/AuditLogger.h
+cpp-backend/AuditLogger.cpp
+
+The logger should append login attempts to:
+/var/log/helpdesk-auth.log
+
+Each log line should include:
+
+* timestamp
+* username
+* result: success or failed
+* role: user/support/admin/none
+* client IP from REMOTE_ADDR if available
+
+Example log line:
+2026-06-01 13:20:11 | user=marcel | result=success | role=support | ip=192.168.51.100
+
+AuditLogger.h should define a simple class or function, for example:
+AuditLogger::logLoginAttempt(username, success, role, ipAddress)
+
+AuditLogger.cpp should:
+
+* open /var/log/helpdesk-auth.log in append mode
+* write one line per login attempt
+* fail silently if the log file cannot be opened
+* not log passwords
+* not log LDAP bind passwords
+* not log session tokens
+
+6. Integrate audit logging into ad-login.
+   Update ad-login so:
+
+* failed login attempts are logged
+* successful login attempts are logged
+* successful log includes detected role
+* failed log uses role=none
+* client IP comes from CGI environment variable REMOTE_ADDR
+
+Do not log the submitted password.
+
+7. Update CMake.
+   Update cpp-backend/CMakeLists.txt so ad-login builds with AuditLogger.cpp.
+
+If ad-bootstrap also needs shared code, keep it building correctly.
+
+8. Prepare Ubuntu audit log file.
+   Run:
+   sudo touch /var/log/helpdesk-auth.log
+   sudo chown www-data:www-data /var/log/helpdesk-auth.log
+   sudo chmod 664 /var/log/helpdesk-auth.log
+
+The CGI runs through Apache, so www-data must be able to write to the log file.
+
+9. Build and deploy C++ backend.
+   Go to:
+   /opt/helpdesk-app/cpp-backend
+
+Run:
+cmake -S . -B build
+cmake --build build
+
+Deploy:
+sudo install -m 0755 build/ad-login /usr/lib/cgi-bin/ad-login
+
+If ad-bootstrap was changed:
+sudo install -m 0755 build/ad-bootstrap /usr/lib/cgi-bin/ad-bootstrap
+
+Then:
+sudo apache2ctl configtest
+sudo systemctl restart apache2
+
+10. Test backend endpoints.
+    Run:
+    curl -i http://helpdesk.skole.local/cgi-bin/ad-login
+    curl -i http://helpdesk.skole.local/cgi-bin/ad-bootstrap
+
+Expected:
+
+* ad-login returns JSON, for example username/password required when no credentials are submitted.
+* ad-bootstrap does not return Kerberos 401.
+* No endpoint should return Apache HTML error pages for normal expected cases.
+
+11. Test audit logging.
+    Test with a failed login attempt through /cgi-bin/ad-login using fake credentials or from the frontend.
+
+Then check:
+sudo tail -n 20 /var/log/helpdesk-auth.log
+
+Expected:
+A failed login attempt is logged without password.
+
+If possible, test a successful AD login with user marcel from the browser.
+
+Expected:
+A success line appears:
+user=marcel | result=success | role=support
+
+If successful AD password testing cannot be done without user input, document that the successful login test must be performed manually by the user.
+
+12. Build and deploy frontend.
+    Go to:
+    /opt/helpdesk-app/frontend
+
+Run:
+npm install
+npm run build
+
+Deploy:
+sudo rsync -a --delete dist/ /var/www/helpdesk/
+sudo chown -R www-data:www-data /var/www/helpdesk
+sudo chmod -R 755 /var/www/helpdesk
+sudo systemctl reload apache2
+
+Test:
+curl -i http://helpdesk.skole.local/
+
+13. Browser test.
+    Open:
+    http://helpdesk.skole.local
+
+Expected:
+
+* The login form appears.
+* There is no Windows Security popup.
+* There is no automatic login attempt.
+* User can log in with AD username/password.
+* marcel should receive support role if login is successful.
+* Support UI appears after successful login.
+
+14. Documentation.
+    Create or update:
+    docs/traditional-ad-login-and-audit-logging-report.md
+
+The document must include:
+
+* Why Kerberos/automatic login was disabled
+* What traditional AD login does
+* Endpoint used: /cgi-bin/ad-login
+* AD group to role mapping
+* C++ audit logging explanation
+* New files added:
+
+  * AuditLogger.h
+  * AuditLogger.cpp
+* Log file:
+  /var/log/helpdesk-auth.log
+* Commands used for build/deploy/test
+* What works now
+* What must still be manually tested if password input was not available
+* Troubleshooting:
+
+  * Could not contact Active Directory
+  * Wrong role returned
+  * 404 on /cgi-bin/ad-login
+  * JSON parse error from Apache HTML
+  * Login works but audit log is empty
+  * Permission denied on /var/log/helpdesk-auth.log
+
+Add this Norwegian exam explanation section:
+
+## Eksamen forklaring
+
+I denne løsningen bruker jeg tradisjonell AD-innlogging. Brukeren skriver inn AD-brukernavn og passord i HelpDesk. C++ CGI-backenden sjekker brukeren mot Active Directory via LDAP. Når brukeren er godkjent, leser backenden hvilke AD-grupper brukeren er medlem av.
+
+AD-gruppene bestemmer rollen automatisk:
+
+* GG_HelpDesk_User gir vanlig brukerrolle
+* GG_HelpDesk_Support gir supportrolle
+* GG_HelpDesk_Admin gir adminrolle
+
+Jeg har også lagt til audit logging i C++. Det betyr at systemet logger innloggingsforsøk til /var/log/helpdesk-auth.log. Loggen viser tidspunkt, brukernavn, om innloggingen var vellykket eller feilet, hvilken rolle brukeren fikk, og IP-adressen til klienten. Dette er nyttig for drift, feilsøking og sikkerhet.
+
+Dette gir meg noe konkret å vise i utviklingsdelen: Jeg kan forklare C++-koden, vise hvordan loggingen fungerer, og teste det ved å logge inn med riktig og feil passord.
+
+15. Create live-coding guide for exam.
+    Create:
+    docs/live-coding-cpp-audit-logging-guide.md
+
+This document should explain, in simple Norwegian, how I can present or recreate the C++ audit logging feature in front of sensor.
+
+Include:
+
+* What problem the feature solves
+* Which files are used
+* What AuditLogger.h does
+* What AuditLogger.cpp does
+* Where ad-login calls the logger
+* How to build with CMake
+* How to deploy ad-login
+* How to test with tail -n 20 /var/log/helpdesk-auth.log
+* Short explanation I can say to sensor
+
+16. Update older documentation.
+    If old documentation says Kerberos automatic login is the active main login method, update it to say:
+
+* Kerberos/SSO was tested but disabled for exam stability.
+* Traditional AD login is now the active method.
+* Role detection still comes from AD groups.
+* Audit logging was added in C++.
+
+17. Git safety check.
+    Before staging:
+    git status
+    git diff --stat
+
+Make sure these are not staged:
+
+* keytab files
+* passwords
+* /etc/helpdesk-ldap.conf
+* /etc/apache2/helpdesk.keytab
+* .env files with secrets
+* copied system configs with secrets
+
+Update .gitignore if needed:
+*.keytab
+.env
+.env.*
+helpdesk-ldap.conf
+krb5.keytab
+*.secret
+*.local
+
+18. Commit and push.
+    Commit safe repository changes only.
+
+Run:
+git add .
+git status
+
+If secrets are staged, unstage them immediately.
+
+Commit:
+git commit -m "Use traditional AD login and add C++ audit logging"
+
+Push:
+git push
+
+19. Final output.
+    Print:
+
+* What was changed
+* What was disabled
+* What C++ files were added
+* What tests passed
+* Manual login test result
+* Audit logging test result
+* Documentation paths
+* Files changed
+* Commit hash
+* Push result
+
+Do not claim successful AD login was fully verified unless an actual AD username/password login was tested successfully.
