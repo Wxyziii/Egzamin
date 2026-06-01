@@ -1,0 +1,32 @@
+Configure Apache Kerberos SSO for the helpdesk app on Ubuntu.
+
+Environment:
+- AD domain: skole.local
+- Kerberos realm: SKOLE.LOCAL
+- Domain controller/KDC: 192.168.51.2
+- Website FQDN: helpdesk.skole.local
+- Apache site serves frontend at /var/www/helpdesk
+- CGI backend endpoints are in /usr/lib/cgi-bin:
+  - /cgi-bin/ad-bootstrap
+  - /cgi-bin/ad-login
+- Keytab file is available as ./helpdesk.keytab and must be installed to /etc/apache2/helpdesk.keytab
+
+Tasks:
+1. Install krb5-user and libapache2-mod-auth-gssapi.
+2. Write /etc/krb5.conf with realm SKOLE.LOCAL and KDC 192.168.51.2.
+3. Move ./helpdesk.keytab to /etc/apache2/helpdesk.keytab.
+4. Set owner root:www-data and permissions 640.
+5. Create /etc/apache2/conf-available/helpdesk-kerberos.conf.
+6. Protect only /cgi-bin/ad-bootstrap with GSSAPI:
+   - AuthType GSSAPI
+   - AuthName "Helpdesk Kerberos Login"
+   - GssapiCredStore keytab:/etc/apache2/helpdesk.keytab
+   - GssapiSSLonly Off
+   - Require valid-user
+7. Enable auth_gssapi and the Apache config.
+8. Run apache2ctl configtest and restart Apache.
+9. Test:
+   - klist -k /etc/apache2/helpdesk.keytab
+   - kinit -k -t /etc/apache2/helpdesk.keytab HTTP/helpdesk.skole.local@SKOLE.LOCAL
+   - curl -i --negotiate -u : http://helpdesk.skole.local/cgi-bin/ad-bootstrap
+10. Do not modify /cgi-bin/ad-login because manual AD login must still work.
