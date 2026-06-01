@@ -1,0 +1,181 @@
+You are working in my Helpdesk exam project repository on the Ubuntu helpdesk server.
+
+Goal:
+Test and verify that the full deployed helpdesk system works, including frontend build, Apache deployment, C++ CGI backend, LDAP manual login, and Kerberos/automatic role detection setup. Then create a clear documentation file explaining what was tested, what was fixed, what works, what still needs manual setup, and push everything to GitHub.
+
+Environment:
+
+* Domain: skole.local
+* Kerberos realm: SKOLE.LOCAL
+* Windows Server / AD / DNS: 192.168.51.2
+* Ubuntu helpdesk server: 192.168.51.3
+* Website: http://helpdesk.skole.local
+* Frontend is served from: /var/www/helpdesk
+* CGI backend endpoints:
+
+  * /cgi-bin/ad-bootstrap
+  * /cgi-bin/ad-login
+* CGI executables are deployed to: /usr/lib/cgi-bin/
+* LDAP config file is: /etc/helpdesk-ldap.conf
+* Apache Kerberos keytab is: /etc/apache2/helpdesk.keytab
+* AD groups used for role detection:
+
+  * GG_HelpDesk_Admin -> admin
+  * GG_HelpDesk_Support -> support
+  * GG_HelpDesk_User -> user
+* Test AD user:
+
+  * marcel
+  * member of GG_HelpDesk_Support
+
+Important security rules:
+
+* NEVER commit /etc/helpdesk-ldap.conf
+* NEVER commit /etc/apache2/helpdesk.keytab
+* NEVER print real passwords into documentation
+* NEVER commit secrets, keytabs, LDAP passwords, or private config files
+* If documentation needs to mention passwords/config, use placeholders like <LDAP_BIND_PASSWORD> or <KEYTAB_FILE>
+
+Tasks:
+
+1. Inspect the repository structure.
+
+   * Identify frontend folder.
+   * Identify C++ CGI backend folder.
+   * Identify scripts/config/docs folders if they exist.
+   * Do not rewrite the whole project unless required.
+
+2. Test frontend build.
+
+   * Run npm install where needed.
+   * Run npm run build.
+   * If build fails, fix dependency or script issues.
+   * Confirm the production build output path.
+   * Deploy the frontend build to /var/www/helpdesk if needed.
+   * Ensure Apache can serve http://helpdesk.skole.local.
+
+3. Test C++ CGI backend build.
+
+   * Go to the C++ backend folder.
+   * Run:
+     cmake -S . -B build
+     cmake --build build
+   * Confirm that build/ad-bootstrap and build/ad-login exist.
+   * If build fails, fix CMake or source issues without changing the intended LDAP behavior.
+
+4. Verify CGI deployment.
+
+   * Ensure Apache CGI is enabled:
+     a2enmod cgi
+     a2enconf serve-cgi-bin
+   * Ensure these files exist:
+     /usr/lib/cgi-bin/ad-bootstrap
+     /usr/lib/cgi-bin/ad-login
+   * Ensure they are executable.
+   * Test:
+     curl -i http://helpdesk.skole.local/cgi-bin/ad-bootstrap
+     curl -i http://helpdesk.skole.local/cgi-bin/ad-login
+   * The result must not be 404.
+   * If there is a 500 error, inspect Apache logs and fix the cause.
+
+5. Verify LDAP config and manual AD login.
+
+   * Check that /etc/helpdesk-ldap.conf exists and is readable by Apache, but do not display secrets.
+   * Expected values:
+     LDAP_URI=ldap://192.168.51.2
+     BASE_DN=DC=skole,DC=local
+     BIND_DN should point to svc_helpdesk_ldap
+     USER_DOMAIN=skole.local
+     START_TLS=0
+   * Run an LDAP connectivity test without exposing passwords.
+   * Confirm that the user marcel has memberOf containing GG_HelpDesk_Support.
+   * Test /cgi-bin/ad-login with a safe method. Do not include real password in committed docs.
+   * Confirm that manual AD login returns JSON and maps marcel to support.
+
+6. Verify Kerberos/automatic login setup.
+
+   * Check that /etc/krb5.conf has:
+     default_realm = SKOLE.LOCAL
+     KDC = 192.168.51.2
+   * Check that /etc/apache2/helpdesk.keytab exists.
+   * Check:
+     klist -k /etc/apache2/helpdesk.keytab
+   * Confirm it contains:
+     HTTP/helpdesk.[skole.local@SKOLE.LOCAL](mailto:skole.local@SKOLE.LOCAL)
+   * Check that Apache module auth_gssapi is installed and enabled.
+   * Check or create:
+     /etc/apache2/conf-available/helpdesk-kerberos.conf
+   * It should protect only:
+     /cgi-bin/ad-bootstrap
+   * Use:
+     AuthType GSSAPI
+     AuthName "Helpdesk Kerberos Login"
+     GssapiCredStore keytab:/etc/apache2/helpdesk.keytab
+     GssapiLocalName On
+     GssapiSSLonly Off
+     Require valid-user
+   * Run apache2ctl configtest.
+   * Restart Apache.
+   * Test ad-bootstrap.
+   * If automatic login requires browser/domain-client testing, document exactly what must be tested manually from a Windows domain client logged in as SKOLE\marcel.
+
+7. Check browser/API behavior.
+
+   * Confirm frontend is calling:
+     /cgi-bin/ad-bootstrap
+     /cgi-bin/ad-login
+   * Confirm the frontend no longer gets 404 for those endpoints.
+   * If JSON parsing errors happen because HTML error pages are returned, fix the backend or frontend error handling so the user sees a clean error message.
+
+8. Create documentation.
+   Create or update:
+   docs/deployment-and-ad-role-detection-report.md
+
+   The document must include:
+
+   * Short overview of the system
+   * Network/IP overview
+   * AD groups and role mapping
+   * LDAP backend explanation
+   * Kerberos automatic login explanation
+   * Files deployed on Ubuntu
+   * Commands used for build/deploy/test
+   * What works now
+   * What still requires manual verification from Windows domain client
+   * Troubleshooting section for:
+
+     * 404 on /cgi-bin/ad-login or /cgi-bin/ad-bootstrap
+     * Could not contact Active Directory
+     * Kerberos/automatic login not working
+     * Wrong AD role returned
+   * Do not include secrets.
+
+9. Add a short exam explanation section.
+   In the documentation, include a section called:
+   "Eksamen forklaring"
+   Write it in simple Norwegian. Explain:
+
+   * AD stores users and groups
+   * C++ CGI backend checks LDAP
+   * AD groups decide roles automatically
+   * Apache/Kerberos can provide automatic login through REMOTE_USER
+   * Manual login still works as fallback
+   * Frontend uses the returned role to show user/support/admin UI
+
+10. Git commit and push.
+
+* Run git status.
+* Ensure no secrets are staged.
+* Ensure keytab, LDAP config, .env, passwords, and system files are not committed.
+* Add/update .gitignore if needed to prevent secrets.
+* Commit with a clear message:
+  "Document and verify AD role detection deployment"
+* Push to GitHub.
+
+Before finishing, print a final summary:
+
+* Tests passed
+* Tests failed or requiring manual verification
+* Files changed
+* Commit hash
+* Push status
