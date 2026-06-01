@@ -1,5 +1,7 @@
 # Ubuntu AD/Kerberos completion report
 
+> Historical note: this document describes the earlier Ubuntu AD/Kerberos setup. The active Windows exam version now uses local exam login and does not require AD, LDAP, Kerberos, keytabs, Apache CGI, or Windows Integrated Authentication.
+
 Date: 2026-06-01
 
 ## Summary

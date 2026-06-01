@@ -38,7 +38,7 @@ export default function TicketDetail({ ticket, session, tickets, onClaim, onSend
     <article className="ticket-detail">
       <div className="stats-strip">
         <div className="stat-item"><span className="stat-label">Open today</span><span className="stat-value">{open}</span><span className="stat-change stat-up">{session.role}</span></div>
-        <div className="stat-item"><span className="stat-label">Avg. response</span><span className="stat-value">4.2m</span><span className="stat-change stat-up">AD verified</span></div>
+        <div className="stat-item"><span className="stat-label">Avg. response</span><span className="stat-value">4.2m</span><span className="stat-change stat-up">Local login</span></div>
         <div className="stat-item"><span className="stat-label">Claimed</span><span className="stat-value">{claimed}</span><span className="stat-change stat-up">Live queue</span></div>
         <div className="stat-item"><span className="stat-label">Resolved today</span><span className="stat-value">{resolved}</span><span className="stat-change stat-up">localStorage</span></div>
       </div>

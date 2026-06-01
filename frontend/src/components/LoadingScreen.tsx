@@ -8,8 +8,8 @@ export default function LoadingScreen() {
         </div>
         <div className="state-panel">
           <div className="loader" />
-          <h1>Sjekker rolle mot Active Directory...</h1>
-          <p>C++ backend kontrollerer AD-grupper via LDAP for a finne riktig dashboard.</p>
+          <h1>Laster HelpDesk...</h1>
+          <p>Starter lokalt eksamensoppsett.</p>
         </div>
       </div>
     </div>

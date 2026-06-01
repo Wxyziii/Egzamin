@@ -1,74 +1,48 @@
-# C++ LDAP CGI backend
+# C++ AuditLogger demo
 
-This folder builds two Apache CGI executables:
+This folder contains the active C++ feature for the exam version: local audit logging for login attempts.
 
-- `ad-bootstrap` - compatibility endpoint that returns JSON telling the frontend to use manual login
-- `ad-login` - active manual AD username/password login with LDAP bind and audit logging
+The old LDAP/AD CGI source files are kept as historical work, but they are not built by the active Windows CMake setup. The active build does not require LDAP libraries, Kerberos, Apache, keytabs, or Active Directory.
 
-Both endpoints return JSON consumed by the frontend. Traditional AD login through `ad-login` is the active exam flow.
+## Files
+
+- `AuditLogger.h` - function declaration
+- `AuditLogger.cpp` - writes password-free audit log lines
+- `login.cpp` - small CLI demo that calls the logger
+- `CMakeLists.txt` - builds `helpdesk-audit-demo`
 
 ## Build
 
-```bash
-sudo apt update
-sudo apt install g++ cmake make libldap2-dev ldap-utils
+```powershell
 cmake -S . -B build
 cmake --build build
 ```
 
-## Configure
+## Run
 
-Copy `config.example` to `/etc/helpdesk-ldap.conf` and set the real service account password there.
-
-```bash
-sudo cp config.example /etc/helpdesk-ldap.conf
-sudo nano /etc/helpdesk-ldap.conf
-sudo chmod 600 /etc/helpdesk-ldap.conf
+```powershell
+.\build\Debug\helpdesk-audit-demo.exe support1 success support local
+.\build\Debug\helpdesk-audit-demo.exe user1 failed none local
 ```
 
-The program can also read these environment variables:
+If your CMake generator creates a single-config build:
 
-- `HELPDESK_LDAP_CONFIG`
-- `HELPDESK_LDAP_URI`
-- `HELPDESK_BASE_DN`
-- `HELPDESK_BIND_DN`
-- `HELPDESK_BIND_PASSWORD`
-- `HELPDESK_USER_DOMAIN`
-- `HELPDESK_START_TLS`
-
-## LDAP behavior
-
-1. Connects to `LDAP_URI`.
-2. Binds with service account from config.
-3. Searches by `sAMAccountName`.
-4. Reads `memberOf`.
-5. Maps these AD groups:
-   - `GG_HelpDesk_Admin` -> `admin`
-   - `GG_HelpDesk_Support` -> `support`
-   - `GG_HelpDesk_User` -> `user`
-
-Manual login additionally binds as the found user DN with the submitted password before returning a role.
-
-`ad-login` writes password-free audit entries to `/var/log/helpdesk-auth.log` through `AuditLogger.cpp`.
-
-## Apache deployment
-
-```bash
-sudo a2enmod cgi
-sudo systemctl restart apache2
-sudo cp build/ad-bootstrap /usr/lib/cgi-bin/ad-bootstrap
-sudo cp build/ad-login /usr/lib/cgi-bin/ad-login
-sudo chmod +x /usr/lib/cgi-bin/ad-bootstrap
-sudo chmod +x /usr/lib/cgi-bin/ad-login
+```powershell
+.\build\helpdesk-audit-demo.exe support1 success support local
 ```
 
-## AD connectivity test
+## Log path
 
-```bash
-ldapsearch -x \
-  -H ldap://192.168.51.2 \
-  -D "CN=svc_helpdesk_ldap,OU=Service Accounts,DC=eksamen,DC=local" \
-  -W \
-  -b "DC=eksamen,DC=local" \
-  "(sAMAccountName=support1)" memberOf
+Default local path:
+
+```text
+logs/helpdesk-auth.log
 ```
+
+Production Ubuntu path can be configured with:
+
+```text
+HELPDESK_AUTH_LOG=/var/log/helpdesk-auth.log
+```
+
+The logger never writes passwords.

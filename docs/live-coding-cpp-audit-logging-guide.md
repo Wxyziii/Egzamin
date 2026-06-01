@@ -1,129 +1,92 @@
 # Live-coding guide: C++ audit logging
 
-## Hva problemet er
+Dette er en enkel guide jeg kan bruke foran sensor.
 
-Jeg vil kunne se hvem som prøver å logge inn i HelpDesk. Hvis noen skriver feil passord, eller hvis en bruker logger inn riktig, skal systemet skrive en enkel linje i en loggfil. Dette hjelper med feilsøking og sikkerhet.
+## Hva jeg skal kode
 
-## Filer som brukes
+Jeg skal vise en liten C++ backend-funksjon som logger innloggingsforsøk. Den skal ikke lagre passord. Den skal bare skrive tidspunkt, brukernavn, resultat, rolle og IP-adresse.
 
-```text
-cpp-backend/AuditLogger.h
-cpp-backend/AuditLogger.cpp
-cpp-backend/main_login.cpp
-cpp-backend/CMakeLists.txt
-```
+## Filer jeg redigerer
 
-Loggfilen ligger her:
+- `cpp-backend/AuditLogger.h`
+- `cpp-backend/AuditLogger.cpp`
+- `cpp-backend/CMakeLists.txt`
 
-```text
-/var/log/helpdesk-auth.log
-```
+## AuditLogger.h
 
-## Hva AuditLogger.h gjør
+Denne filen beskriver funksjonen resten av programmet kan bruke.
 
-`AuditLogger.h` er header-filen. Den forteller resten av C++-programmet at funksjonen finnes:
+Eksempel jeg kan forklare:
 
 ```cpp
-AuditLogger::logLoginAttempt(username, success, role, ipAddress);
+void logLoginAttempt(const std::string& username,
+                     bool success,
+                     const std::string& role,
+                     const std::string& ipAddress);
 ```
 
-Den sier hvilke verdier funksjonen trenger:
+## AuditLogger.cpp
 
-* brukernavn
-* om innloggingen var vellykket
-* rolle
-* IP-adresse
+Denne filen inneholder selve loggingen.
 
-## Hva AuditLogger.cpp gjør
+Den gjør fire viktige ting:
 
-`AuditLogger.cpp` inneholder selve koden som skriver til loggfilen.
+1. Lager tidsstempel.
+2. Rydder bort linjeskift og `|` fra tekst som skal logges.
+3. Oppretter `logs`-mappen hvis den mangler.
+4. Skriver en linje til `logs/helpdesk-auth.log`.
 
-Den:
-
-* lager tidspunkt
-* åpner `/var/log/helpdesk-auth.log`
-* skriver en linje med `user`, `result`, `role` og `ip`
-* logger ikke passord
-* feiler stille hvis loggfilen ikke kan åpnes
-
-Eksempel:
+Eksempel på logglinje:
 
 ```text
-2026-06-01 11:50:29 | user=fake_audit_user | result=failed | role=none | ip=192.168.51.3
+2026-06-01 13:20:11 | user=support1 | result=success | role=support | ip=local
 ```
 
-## Hvor ad-login kaller loggeren
+## CMakeLists.txt
 
-I `main_login.cpp` blir loggeren kalt når:
+Denne filen forteller CMake hvordan programmet bygges.
 
-* brukernavn eller passord mangler
-* AD-login feiler
-* AD-login virker, men ingen HelpDesk-gruppe matcher
-* AD-login lykkes og en rolle blir funnet
+Viktig del:
 
-Ved suksess logger den rollen, for eksempel `support`.
-Ved feil logger den `role=none`.
+```cmake
+add_executable(helpdesk-audit-demo
+    login.cpp
+    AuditLogger.cpp
+)
+```
 
-## Hvordan bygge med CMake
+## Build command
 
-Fra serveren:
-
-```bash
-cd /opt/helpdesk-app/cpp-backend
+```powershell
+cd cpp-backend
 cmake -S . -B build
 cmake --build build
 ```
 
-`CMakeLists.txt` må ha `AuditLogger.cpp` med i `ad-login`:
+## Test command
 
-```cmake
-add_executable(ad-login main_login.cpp AuditLogger.cpp ${COMMON_SOURCES})
+Vanlig Windows CMake-build:
+
+```powershell
+.\build\Debug\helpdesk-audit-demo.exe support1 success support local
+.\build\Debug\helpdesk-audit-demo.exe user1 failed none local
+Get-Content .\logs\helpdesk-auth.log
 ```
 
-## Hvordan deploye ad-login
+Hvis programmet ligger direkte i `build`:
 
-```bash
-sudo install -m 0755 build/ad-login /usr/lib/cgi-bin/ad-login
-sudo apache2ctl configtest
-sudo systemctl restart apache2
+```powershell
+.\build\helpdesk-audit-demo.exe support1 success support local
 ```
 
-## Hvordan teste
+## Forklaring jeg kan si høyt
 
-Lag loggfilen hvis den ikke finnes:
+"Jeg har lagt inn lokal innlogging i React for at eksamensdemoen skal være stabil. I tillegg har jeg laget en C++ AuditLogger som simulerer en backend-funksjon. Den kan brukes av en ekte login-backend senere. Loggeren skriver hvem som prøvde å logge inn, om forsøket var vellykket, hvilken rolle brukeren fikk, og IP-adresse. Den logger aldri passord. Jeg bygger koden med CMake og kan vise loggfilen etterpå."
 
-```bash
-sudo touch /var/log/helpdesk-auth.log
-sudo chown www-data:www-data /var/log/helpdesk-auth.log
-sudo chmod 664 /var/log/helpdesk-auth.log
-```
+## Hvorfor dette er nyttig
 
-Test med feil innlogging:
-
-```bash
-curl -i -X POST http://helpdesk.skole.local/cgi-bin/ad-login \
-  -H 'Content-Type: application/json' \
-  --data '{"username":"fake_audit_user","password":"<WRONG_PASSWORD>"}'
-```
-
-Se loggen:
-
-```bash
-sudo tail -n 20 /var/log/helpdesk-auth.log
-```
-
-Forventet:
-
-```text
-user=fake_audit_user | result=failed | role=none
-```
-
-Når ekte AD-passord testes med `marcel`, forventer jeg:
-
-```text
-user=marcel | result=success | role=support
-```
-
-## Kort forklaring til sensor
-
-Jeg har lagt til audit logging i C++-backenden. Når noen prøver å logge inn via `/cgi-bin/ad-login`, skriver backenden en linje til `/var/log/helpdesk-auth.log`. Den logger tidspunkt, brukernavn, resultat, rolle og IP-adresse. Den logger aldri passord. Dette gjør det lettere å vise både sikkerhet, backend-kode og testing i prosjektet.
+- Viser C++ backend-kode.
+- Viser enkel sikkerhetstenkning.
+- Viser filhåndtering.
+- Viser CMake-build.
+- Gir noe konkret å live-code foran sensor.

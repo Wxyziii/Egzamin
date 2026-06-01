@@ -33,7 +33,7 @@ export default function KnowledgeBase({ session }: { session: Session }) {
         <div>
           <span className="badge badge-open">HelpDesk knowledge</span>
           <h1>Kunnskapsbase</h1>
-          <p>Sok etter vanlige losninger, AD-rutiner og supportprosedyrer for eksamensmiljoet.</p>
+          <p>Sok etter vanlige losninger og supportprosedyrer for eksamensmiljoet.</p>
         </div>
         {canEdit && (
           <div className="kb-admin-actions">

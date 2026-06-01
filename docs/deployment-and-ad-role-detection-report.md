@@ -1,5 +1,7 @@
 # Deployment and AD role detection report
 
+> Historical note: this document describes the earlier AD/Kerberos/LDAP attempt. The active exam version now uses local exam login and does not depend on AD, LDAP, Kerberos, `REMOTE_USER`, Windows Integrated Authentication, `/cgi-bin/ad-login`, or `/cgi-bin/ad-bootstrap`.
+
 ## Overview
 
 This HelpDesk exam project has a Vite/React frontend served by Apache from `/var/www/helpdesk` and a C++ CGI backend deployed in `/usr/lib/cgi-bin`. Kerberos/SSO was tested earlier, but it is now disabled for exam stability. The active login method is traditional AD username/password login through `/cgi-bin/ad-login`, and role detection still comes from AD groups.

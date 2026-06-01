@@ -14,7 +14,7 @@ export function initials(value: string) {
     .filter(Boolean)
     .slice(0, 2)
     .map(part => part[0]?.toUpperCase())
-    .join('') || 'AD';
+    .join('') || 'HD';
 }
 
 export function avatarColor(value: string) {

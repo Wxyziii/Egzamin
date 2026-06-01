@@ -1,272 +1,111 @@
-# DeskFlow HelpDesk exam project
+# DeskFlow HelpDesk exam app
 
-DeskFlow is an exam-ready HelpDesk system with a React/Vite frontend and a C++ CGI backend that resolves roles from Active Directory through LDAP.
+DeskFlow is a local exam-ready HelpDesk demo with a React/Vite frontend and a small C++ audit logging feature.
 
-The original static `helpdesk.html` mockup is still present as a visual reference, but the runnable frontend is now in `frontend/`.
+The active app flow no longer depends on Active Directory, LDAP, Kerberos, `REMOTE_USER`, Windows Integrated Authentication, or CGI login endpoints. Those approaches were tested earlier, but they are now historical documentation only.
 
-## Architecture
-
-- `frontend/` - React + Vite + TypeScript app, built as static files for Apache
-- `cpp-backend/` - C++ CGI endpoints for LDAP role lookup and AD login
-- Apache on Ubuntu hosts the frontend and exposes `/cgi-bin/ad-bootstrap` and `/cgi-bin/ad-login`
-- Windows Server AD DS/DNS/DHCP runs at `192.168.51.2`
-- Ubuntu HelpDesk server runs at `192.168.51.3`
-
-Security boundary:
-
-1. Browser opens the React app.
-2. React shows the traditional AD login form first.
-3. Manual login posts to `/cgi-bin/ad-login`.
-4. C++ validates the password with LDAP bind and maps AD groups to HelpDesk roles.
-5. C++ writes a password-free audit log entry to `/var/log/helpdesk-auth.log`.
-6. React renders dashboards only after backend role JSON is returned.
-
-The frontend never lets a user choose admin/support/user manually.
-Kerberos/SSO was tested earlier, but it is disabled for exam stability. The active login method is traditional AD username/password login through `/cgi-bin/ad-login`.
-
-## AD groups
-
-- `GG_HelpDesk_Admin` -> `admin`
-- `GG_HelpDesk_Support` -> `support`
-- `GG_HelpDesk_User` -> `user`
-
-The live-coding role mapping is in:
+## Active architecture
 
 ```text
-cpp-backend/RoleResolver.cpp
+React frontend -> local exam login -> role-based HelpDesk UI
 ```
 
-Look for:
+The frontend uses a local demo login module:
 
-```cpp
-// EXAM LIVE CODING AREA:
-```
+- `user1 / user123` -> `user`
+- `support1 / support123` -> `support`
+- `admin1 / admin123` -> `admin`
 
-## Local Windows frontend development
+The returned role controls the UI:
 
-From the project root:
+- `user`: create ticket, see own tickets, public replies only
+- `support`: queue, claimed tickets, replies, internal notes, status updates
+- `admin`: all tickets, admin panels, replies, internal notes, status updates
 
-```bash
-npm run install:frontend
-npm run dev
-```
+Internal notes are still filtered in React before rendering. Normal users do not receive note/forward controls and do not see internal note messages.
 
-Or from the frontend folder:
+## Frontend
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+Install and build from the root:
 
-Open the Vite URL, normally:
-
-```text
-http://localhost:5173/
-```
-
-Local dev uses a clean mock mode because Windows/Vite does not normally have Apache CGI endpoints.
-
-Mock users:
-
-- `admin1 / test` -> admin
-- `support1 / test` -> support
-- `user1 / test` -> user
-
-Mock mode is only active in Vite development. Production builds call the real C++ CGI endpoints:
-
-- `/cgi-bin/ad-login`
-
-To force real endpoints during Vite development:
-
-```bash
-set VITE_USE_MOCK_AUTH=false
-npm run dev
-```
-
-## Frontend build for Apache
-
-```bash
-cd frontend
+```powershell
 npm install
 npm run build
 ```
 
-The static build is created in:
+Run locally:
+
+```powershell
+npm run dev
+```
+
+The root scripts proxy into `frontend/`, so you can run these commands from the repository root.
+
+## C++ audit logging demo
+
+The C++ feature is in `cpp-backend/`.
+
+Files:
+
+- `AuditLogger.h`
+- `AuditLogger.cpp`
+- `login.cpp`
+- `CMakeLists.txt`
+
+`AuditLogger::logLoginAttempt(username, success, role, ipAddress)` writes one password-free line per login attempt.
+
+Local Windows test log:
 
 ```text
-frontend/dist/
+logs/helpdesk-auth.log
 ```
 
-Deploy frontend to Apache:
-
-```bash
-sudo cp -r frontend/dist/* /var/www/html/
-```
-
-## C++ backend dependencies on Ubuntu
-
-```bash
-sudo apt update
-sudo apt install apache2 g++ cmake make libldap2-dev ldap-utils
-```
-
-## Configure LDAP
-
-Copy the example config and edit the real password on the Ubuntu server:
-
-```bash
-sudo cp cpp-backend/config.example /etc/helpdesk-ldap.conf
-sudo nano /etc/helpdesk-ldap.conf
-sudo chmod 600 /etc/helpdesk-ldap.conf
-```
-
-Example:
+Example line:
 
 ```text
-LDAP_URI=ldap://192.168.51.2
-BASE_DN=DC=eksamen,DC=local
-BIND_DN=CN=svc_helpdesk_ldap,OU=Service Accounts,DC=eksamen,DC=local
-BIND_PASSWORD=change-me
-USER_DOMAIN=eksamen.local
-START_TLS=false
+2026-06-01 13:20:11 | user=support1 | result=success | role=support | ip=local
 ```
 
-Do not commit the real `BIND_PASSWORD`.
+Build:
 
-## Test AD connectivity
-
-```bash
-ldapsearch -x \
-  -H ldap://192.168.51.2 \
-  -D "CN=svc_helpdesk_ldap,OU=Service Accounts,DC=eksamen,DC=local" \
-  -W \
-  -b "DC=eksamen,DC=local" \
-  "(sAMAccountName=support1)" memberOf
-```
-
-The output should include one of the `GG_HelpDesk_*` groups.
-
-## Build C++ backend
-
-```bash
+```powershell
 cd cpp-backend
 cmake -S . -B build
 cmake --build build
 ```
 
-This creates:
+Run demo after building:
 
-- `build/ad-bootstrap`
-- `build/ad-login`
-
-## Deploy C++ CGI to Apache
-
-```bash
-sudo a2enmod cgi
-sudo systemctl restart apache2
-sudo cp cpp-backend/build/ad-bootstrap /usr/lib/cgi-bin/ad-bootstrap
-sudo cp cpp-backend/build/ad-login /usr/lib/cgi-bin/ad-login
-sudo chmod +x /usr/lib/cgi-bin/ad-bootstrap
-sudo chmod +x /usr/lib/cgi-bin/ad-login
+```powershell
+.\build\Debug\helpdesk-audit-demo.exe support1 success support local
 ```
 
-## Test backend endpoints
+For a single-config CMake generator, the executable may be:
 
-Compatibility bootstrap endpoint:
+```powershell
+.\build\helpdesk-audit-demo.exe support1 success support local
+```
+
+On Ubuntu, the production log path can be configured with `HELPDESK_AUTH_LOG=/var/log/helpdesk-auth.log`.
+
+## Historical AD/Kerberos/LDAP work
+
+Earlier versions tested AD, LDAP, Kerberos, Apache CGI, `/cgi-bin/ad-login`, and `/cgi-bin/ad-bootstrap`. Those files and notes are kept as historical evidence of attempted integration, but they are not the active exam login flow.
+
+Do not commit real `.env` files, keytabs, LDAP passwords, or system Apache configuration.
+
+## Internal note permission test
 
 ```text
-http://192.168.51.3/cgi-bin/ad-bootstrap
-```
-
-Expected response:
-
-```json
-{
-  "status": "manual_login_required",
-  "message": "Automatic login is disabled. Use manual AD login."
-}
-```
-
-Active manual login:
-
-```bash
-curl -i \
-  -H "Content-Type: application/json" \
-  -d '{"username":"support1","password":"AD_PASSWORD_HERE"}' \
-  http://192.168.51.3/cgi-bin/ad-login
-```
-
-## React state behavior
-
-The React app keeps tickets in central state and persists demo data in `localStorage`.
-
-Implemented mutations:
-
-- `createTicket`
-- `claimTicket`
-- `sendMessage`
-- `changeTicketStatus`
-- `addNotification`
-- `selectTicket`
-
-For exam/demo use, it also syncs updates between tabs with:
-
-- `BroadcastChannel`
-- browser `storage` event
-
-This is clearly commented in `frontend/src/state/helpdeskStore.ts` as demo-only realtime simulation.
-
-## Exam test checklist
-
-- Login as `user1 / test` locally
-- Create a ticket
-- Open My tickets
-- Send a chat message
-- Login as `support1 / test`
-- Claim the ticket
-- Confirm system message appears: `<support username> har tatt saken din. Du kan sende melding til support.`
-- Change status to `Waiting`, `In Progress`, and `Resolved`
-- Open knowledge base and confirm role navigation remains
-- Login as `admin1 / test`
-- View all tickets, users, statistics, and system status
-- Run `npm run build`
-- Deploy `frontend/dist/*` to Apache
-- Build and deploy C++ CGI endpoints
-- Test `/cgi-bin/ad-login`
-- Confirm `/cgi-bin/ad-bootstrap` returns manual-login-required JSON
-
 Internal note permission test:
-
-1. Login as `admin1`
+1. Login as admin1
 2. Open ticket
 3. Add internal note
 4. Confirm admin can see internal note
-5. Logout/login as `user1`
+5. Logout/login as user1
 6. Open same ticket
 7. Confirm user cannot see internal note
 8. Confirm user cannot see Note tab
 9. Confirm user cannot see Forward tab
 10. Confirm user can still send normal public reply
-
-## What to code live in front of the sensor
-
-Good live-coding areas:
-
-- `cpp-backend/RoleResolver.cpp`
-  - AD group to role mapping
-  - `matchedGroup`
-  - safe fallback behavior
-- `frontend/src/state/helpdeskStore.ts`
-  - claim ticket mutation
-  - system notification
-  - localStorage persistence
-- `frontend/src/api/authApi.ts`
-  - explain mock mode vs real C++ CGI endpoints
-
-Keep the main security explanation simple:
-
-- frontend asks backend who the user is
-- backend checks AD through LDAP
-- frontend renders only what backend role JSON allows
-- if AD fails, no elevated access is granted
+```

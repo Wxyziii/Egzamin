@@ -1,5 +1,7 @@
 # Traditional AD login and audit logging report
 
+> Historical note: this document describes an earlier traditional AD login attempt. The active exam version now uses local exam login and keeps AD/Kerberos/LDAP work only as historical evidence.
+
 Date: 2026-06-01
 
 ## Why Kerberos/automatic login was disabled

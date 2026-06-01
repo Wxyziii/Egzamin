@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { manualLogin } from './api/authApi';
 import AdminDashboard from './components/AdminDashboard';
 import KnowledgeBase from './components/KnowledgeBase';
-import LoadingScreen from './components/LoadingScreen';
 import ManualLogin from './components/ManualLogin';
 import NotificationBanner from './components/NotificationBanner';
 import Sidebar from './components/Sidebar';
@@ -13,7 +12,7 @@ import { normalizeRole, visibleTicketsForView } from './components/helpers';
 import { useHelpdeskStore } from './state/helpdeskStore';
 import type { Session, ViewKey } from './types/helpdesk';
 
-type AuthState = 'loading' | 'manual' | 'ready' | 'error';
+type AuthState = 'manual' | 'ready';
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>('manual');
@@ -26,7 +25,7 @@ export default function App() {
   async function handleLogin(username: string, password: string) {
     try {
       const result = await manualLogin(username, password);
-      if (result.status === 'manual_login_ok') {
+      if (result.status === 'ok') {
         const nextSession = sessionFromResult(result);
         setSession(nextSession);
         setCurrentView(defaultView(nextSession.role));
@@ -38,7 +37,7 @@ export default function App() {
       setAuthError('message' in result ? result.message : 'Innlogging feilet.');
     } catch {
       setAuthState('manual');
-      setAuthError('Kunne ikke kontakte AD-innloggingen. Prov igjen.');
+      setAuthError('Kunne ikke logge inn. Prov igjen.');
     }
   }
 
@@ -59,26 +58,12 @@ export default function App() {
     claimed: session ? store.state.tickets.filter(ticket => ticket.assignedTo === session.username).length : 0,
     status: store.state.tickets.filter(ticket => ticket.status !== 'Resolved').length,
     allTickets: store.state.tickets.length,
-    users: 'AD',
+    users: '3',
     statistics: '%',
     system: 'OK'
   }), [session, store.state.tickets]);
 
-  if (authState === 'loading') return <LoadingScreen />;
   if (authState === 'manual') return <ManualLogin error={authError} onLogin={handleLogin} />;
-  if (authState === 'error') {
-    return (
-      <div className="auth-screen">
-        <div className="auth-card">
-          <div className="state-panel">
-            <h1>Active Directory er ikke tilgjengelig</h1>
-            <p>{authError || 'Kun brukere med verifisert AD-rolle kan apne HelpDesk.'}</p>
-            <button className="btn btn-ghost" type="button" onClick={() => window.location.reload()}>Prov igjen</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
   if (!session) return null;
 
   const sharedDashboardProps = {
@@ -128,7 +113,7 @@ export default function App() {
   );
 }
 
-function sessionFromResult(result: Extract<Awaited<ReturnType<typeof manualLogin>>, { status: 'manual_login_ok' }>): Session {
+function sessionFromResult(result: Extract<Awaited<ReturnType<typeof manualLogin>>, { status: 'ok' }>): Session {
   return {
     username: result.username,
     role: normalizeRole(result.role),
@@ -150,11 +135,11 @@ function AdminPanels({ view, tickets }: { view: ViewKey; tickets: Array<{ status
   if (view === 'users') {
     return (
       <div className="dashboard">
-        <div className="card"><h2>AD-brukere</h2><p>Produksjonsversjonen kan hente dette fra AD. Roller skal fortsatt komme fra AD-grupper, ikke fra frontend.</p></div>
+        <div className="card"><h2>Demo-brukere</h2><p>Eksamen-versjonen bruker lokal innlogging for stabilitet. Rollen kommer fra innloggingsresultatet.</p></div>
         <div className="cards">
-          <div className="card"><span className="stat-value">GG_HelpDesk_Admin</span><span className="stat-label">Admin role group</span></div>
-          <div className="card"><span className="stat-value">GG_HelpDesk_Support</span><span className="stat-label">Support role group</span></div>
-          <div className="card"><span className="stat-value">GG_HelpDesk_User</span><span className="stat-label">User role group</span></div>
+          <div className="card"><span className="stat-value">admin1</span><span className="stat-label">admin / admin123</span></div>
+          <div className="card"><span className="stat-value">support1</span><span className="stat-label">support / support123</span></div>
+          <div className="card"><span className="stat-value">user1</span><span className="stat-label">user / user123</span></div>
         </div>
       </div>
     );
@@ -163,9 +148,9 @@ function AdminPanels({ view, tickets }: { view: ViewKey; tickets: Array<{ status
     return (
       <div className="dashboard">
         <div className="cards">
-          <div className="card"><span className="stat-value">192.168.51.2</span><span className="stat-label">Windows Server AD DS/DNS/DHCP</span></div>
-          <div className="card"><span className="stat-value">192.168.51.3</span><span className="stat-label">Ubuntu Apache HelpDesk</span></div>
-          <div className="card"><span className="stat-value">LDAP</span><span className="stat-label">Checked by C++ CGI backend</span></div>
+          <div className="card"><span className="stat-value">Local</span><span className="stat-label">Stable exam login</span></div>
+          <div className="card"><span className="stat-value">React</span><span className="stat-label">Role-based HelpDesk UI</span></div>
+          <div className="card"><span className="stat-value">C++</span><span className="stat-label">AuditLogger demo backend feature</span></div>
         </div>
       </div>
     );
