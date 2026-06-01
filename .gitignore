@@ -1,0 +1,12 @@
+node_modules/
+frontend/node_modules/
+frontend/dist/
+cpp-backend/build/
+
+.env
+.env.*
+*.keytab
+helpdesk-ldap.conf
+*ldap*.conf
+*password*
+*secret*
