@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeskFlow — Helpdesk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F6F3;
+    --surface: #FFFFFF;
+    --surface2: #F0EEE9;
+    --border: #E4E1D9;
+    --border2: #D0CCC2;
+    --text-primary: #1A1916;
+    --text-secondary: #6B6760;
+    --text-tertiary: #9E9A93;
+    --accent: #2D5BE3;
+    --accent-light: #EBF0FD;
+    --accent-hover: #2450CC;
+    --green: #1E7A4A;
+    --green-bg: #E6F5ED;
+    --amber: #92520A;
+    --amber-bg: #FDF2E2;
+    --red: #B92A2A;
+    --red-bg: #FDECEC;
+    --purple: #5B3FB5;
+    --purple-bg: #EEE9FB;
+    --sidebar-w: 240px;
+    --header-h: 56px;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 30px;
+    height: 30px;
+    background: var(--accent);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logo-icon svg { width: 16px; height: 16px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; }
+  .logo-name { font-weight: 600; font-size: 15px; letter-spacing: -0.2px; }
+  .logo-tag { font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 1px; }
+
+  .sidebar-section { padding: 16px 12px 6px; }
+  .sidebar-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-tertiary);
+    padding: 0 8px;
+    margin-bottom: 4px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 13.5px;
+    font-weight: 400;
+    transition: background 0.12s, color 0.12s;
+    position: relative;
+    text-decoration: none;
+  }
+
+  .nav-item:hover { background: var(--bg); color: var(--text-primary); }
+  .nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 20px;
+    min-width: 18px;
+    text-align: center;
+  }
+  .nav-badge.muted { background: var(--surface2); color: var(--text-secondary); }
+
+  .sidebar-divider { height: 1px; background: var(--border); margin: 8px 12px; }
+
+  .sidebar-agents {
+    padding: 8px 12px 6px;
+  }
+
+  .agent-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 8px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .agent-item:hover { background: var(--bg); }
+
+  .agent-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .agent-name { font-size: 13px; color: var(--text-secondary); flex: 1; }
+  .agent-status { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .status-online { background: #22C55E; }
+  .status-busy { background: #F59E0B; }
+  .status-offline { background: var(--border2); }
+
+  .sidebar-bottom {
+    margin-top: auto;
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .user-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .user-card:hover { background: var(--bg); }
+  .user-card-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--purple);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .user-card-info { flex: 1; overflow: hidden; }
+  .user-card-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-card-role { font-size: 11px; color: var(--text-tertiary); }
+  .user-card-icon svg { width: 14px; height: 14px; fill: none; stroke: var(--text-tertiary); stroke-width: 2; }
+
+  /* ── MAIN AREA ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    height: var(--header-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .topbar-title { font-size: 15px; font-weight: 600; flex: 1; letter-spacing: -0.2px; }
+  .topbar-title span { color: var(--text-tertiary); font-weight: 400; font-size: 13px; margin-left: 6px; }
+
+  .search-wrap {
+    position: relative;
+    flex: 0 0 240px;
+  }
+  .search-wrap svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: var(--text-tertiary);
+    stroke-width: 2;
+    pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    padding: 0 10px 0 32px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .search-input::placeholder { color: var(--text-tertiary); }
+  .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,91,227,0.1); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.12s;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-secondary); }
+  .btn-ghost:hover { background: var(--bg); color: var(--text-primary); }
+
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.12s;
+    position: relative;
+  }
+  .icon-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+  .icon-btn:hover { background: var(--bg); color: var(--text-primary); }
+
+  .notif-dot {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 7px;
+    height: 7px;
+    background: var(--red);
+    border-radius: 50%;
+    border: 1.5px solid var(--surface);
+  }
+
+  /* ── CONTENT AREA ── */
+  .content-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── TICKET LIST ── */
+  .ticket-list-panel {
+    width: 380px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title { font-size: 13px; font-weight: 600; flex: 1; }
+
+  .filter-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 10px 12px 0;
+  }
+
+  .filter-tab {
+    padding: 5px 10px;
+    border-radius: var(--radius);
+    font-size: 12.5px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-weight: 400;
+    transition: background 0.12s, color 0.12s;
+    border: none;
+    background: none;
+    font-family: var(--font);
+  }
+  .filter-tab.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+  .filter-tab:hover:not(.active) { background: var(--bg); color: var(--text-primary); }
+
+  .ticket-scroll { flex: 1; overflow-y: auto; padding: 8px; }
+  .ticket-scroll::-webkit-scrollbar { width: 4px; }
+  .ticket-scroll::-webkit-scrollbar-track { background: transparent; }
+  .ticket-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  .ticket-item {
+    padding: 12px 14px;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: background 0.1s;
+    border: 1.5px solid transparent;
+    margin-bottom: 3px;
+  }
+  .ticket-item:hover { background: var(--bg); }
+  .ticket-item.selected { background: var(--accent-light); border-color: rgba(45,91,227,0.2); }
+
+  .ticket-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
+  .ticket-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    margin-top: 1px;
+  }
+  .ticket-meta { flex: 1; min-width: 0; }
+  .ticket-name { font-size: 13px; font-weight: 500; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ticket-subject { font-size: 12.5px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ticket-time { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; }
+
+  .ticket-preview {
+    font-size: 12.5px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 8px;
+  }
+
+  .ticket-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .badge-open { background: var(--accent-light); color: var(--accent); }
+  .badge-urgent { background: var(--red-bg); color: var(--red); }
+  .badge-pending { background: var(--amber-bg); color: var(--amber); }
+  .badge-resolved { background: var(--green-bg); color: var(--green); }
+  .badge-tag { background: var(--surface2); color: var(--text-secondary); }
+  .badge-new { background: var(--purple-bg); color: var(--purple); }
+
+  .unread-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-left: auto; flex-shrink: 0; }
+
+  /* ── TICKET DETAIL ── */
+  .ticket-detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .detail-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .detail-header-info { flex: 1; min-width: 0; }
+  .detail-ticket-id { font-family: var(--mono); font-size: 11px; color: var(--text-tertiary); margin-bottom: 3px; }
+  .detail-title { font-size: 16px; font-weight: 600; letter-spacing: -0.2px; margin-bottom: 6px; }
+  .detail-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .detail-meta-item { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+  .detail-meta-item svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; }
+  .detail-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+  .detail-body { flex: 1; overflow-y: auto; display: flex; gap: 0; }
+  .detail-body::-webkit-scrollbar { width: 4px; }
+  .detail-body::-webkit-scrollbar-track { background: transparent; }
+  .detail-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  .conversation { flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 20px; max-width: 720px; overflow-y: auto; }
+  .conversation::-webkit-scrollbar { width: 4px; }
+  .conversation::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  .message { display: flex; gap: 12px; }
+  .message.agent { flex-direction: row-reverse; }
+
+  .msg-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    margin-top: 2px;
+  }
+
+  .msg-content { flex: 1; max-width: 520px; }
+  .message.agent .msg-content { align-items: flex-end; display: flex; flex-direction: column; }
+
+  .msg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+  .message.agent .msg-header { flex-direction: row-reverse; }
+  .msg-name { font-size: 12.5px; font-weight: 500; }
+  .msg-time { font-size: 11px; color: var(--text-tertiary); }
+
+  .msg-bubble {
+    padding: 12px 16px;
+    border-radius: var(--radius-lg);
+    font-size: 13.5px;
+    line-height: 1.6;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .message.agent .msg-bubble {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  .msg-attachment {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--surface2);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    width: fit-content;
+  }
+  .msg-attachment svg { width: 14px; height: 14px; fill: none; stroke: var(--text-secondary); stroke-width: 1.8; }
+  .msg-attachment-name { font-size: 12px; color: var(--text-secondary); }
+  .msg-attachment-size { font-size: 11px; color: var(--text-tertiary); }
+
+  .msg-note {
+    padding: 12px 16px;
+    border-radius: var(--radius-lg);
+    font-size: 13px;
+    line-height: 1.6;
+    background: #FFFBEC;
+    border: 1px solid #F5E09A;
+    color: #6B5500;
+  }
+  .note-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #A07A00; margin-bottom: 4px; }
+
+  /* Reply box */
+  .reply-area {
+    padding: 16px 24px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    max-width: 720px;
+    width: 100%;
+  }
+
+  .reply-tabs { display: flex; gap: 2px; margin-bottom: 10px; }
+  .reply-tab {
+    padding: 4px 10px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-weight: 400;
+    transition: background 0.12s, color 0.12s;
+    border: none;
+    background: none;
+    font-family: var(--font);
+  }
+  .reply-tab.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+  .reply-tab:hover:not(.active) { background: var(--bg); }
+
+  .reply-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 12px 14px;
+    font-family: var(--font);
+    font-size: 13.5px;
+    color: var(--text-primary);
+    background: var(--bg);
+    resize: none;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    line-height: 1.5;
+    height: 88px;
+  }
+  .reply-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,91,227,0.1); background: var(--surface); }
+  .reply-input::placeholder { color: var(--text-tertiary); }
+
+  .reply-footer { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .reply-toolbar { display: flex; gap: 4px; flex: 1; }
+  .toolbar-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius);
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: background 0.12s;
+  }
+  .toolbar-btn:hover { background: var(--bg); color: var(--text-primary); }
+  .toolbar-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+
+  /* Sidebar detail */
+  .detail-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .detail-sidebar::-webkit-scrollbar { width: 4px; }
+  .detail-sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  .ds-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+  }
+
+  .ds-field { margin-bottom: 12px; }
+  .ds-label { font-size: 11.5px; color: var(--text-tertiary); margin-bottom: 4px; }
+  .ds-value { font-size: 13px; font-weight: 400; color: var(--text-primary); }
+  .ds-value.link { color: var(--accent); cursor: pointer; }
+  .ds-value.link:hover { text-decoration: underline; }
+
+  .assignee-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .assignee-row:hover { background: var(--bg); }
+  .assignee-row svg { width: 14px; height: 14px; fill: none; stroke: var(--text-tertiary); stroke-width: 2; margin-left: auto; }
+
+  .progress-bar { height: 5px; background: var(--surface2); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; }
+
+  .csat-stars { display: flex; gap: 3px; margin-top: 4px; }
+  .csat-stars svg { width: 14px; height: 14px; stroke: #F59E0B; fill: #F59E0B; }
+  .csat-stars svg.empty { fill: var(--surface2); stroke: var(--border2); }
+
+  .tag-list { display: flex; flex-wrap: wrap; gap: 5px; }
+  .tag-item {
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    background: var(--surface2);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.12s;
+    border: 1px solid var(--border);
+  }
+  .tag-item:hover { background: var(--bg); }
+
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .timeline-item { display: flex; gap: 10px; padding-bottom: 14px; position: relative; }
+  .timeline-item:last-child { padding-bottom: 0; }
+  .timeline-line {
+    position: absolute;
+    left: 10px;
+    top: 22px;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+  }
+  .timeline-item:last-child .timeline-line { display: none; }
+  .timeline-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    z-index: 1;
+  }
+  .timeline-dot svg { width: 10px; height: 10px; fill: none; stroke: var(--text-tertiary); stroke-width: 2; }
+  .timeline-dot.accent { border-color: var(--accent); }
+  .timeline-dot.accent svg { stroke: var(--accent); }
+  .timeline-text { flex: 1; padding-top: 2px; }
+  .timeline-action { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+  .timeline-action strong { color: var(--text-primary); font-weight: 500; }
+  .timeline-time { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+  /* ── SCROLLBAR GLOBAL ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  /* ── STATUS SELECT ── */
+  .status-select {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .status-select:focus { border-color: var(--accent); }
+
+  .priority-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .p-urgent { background: var(--red); }
+  .p-high { background: var(--amber); }
+  .p-medium { background: var(--accent); }
+  .p-low { background: #22C55E; }
+
+  /* ── SEPARATOR ── */
+  .sep { height: 1px; background: var(--border); margin: 2px 0; }
+
+  /* ── STATS STRIP ── */
+  .stats-strip {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    padding: 0 24px;
+    gap: 0;
+  }
+  .stat-item {
+    padding: 10px 20px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .stat-item:first-child { padding-left: 0; }
+  .stat-label { font-size: 11px; color: var(--text-tertiary); }
+  .stat-value { font-size: 18px; font-weight: 600; letter-spacing: -0.5px; }
+  .stat-change { font-size: 11px; }
+  .stat-up { color: var(--green); }
+  .stat-down { color: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 16 16">
+        <path d="M14 10.5C14 11.9 12.8 13 11.4 13H4C2.3 13 1 11.7 1 10C1 8.6 1.9 7.4 3.2 7.1C3.1 6.8 3 6.4 3 6C3 4.3 4.3 3 6 3C7 3 7.9 3.5 8.5 4.3C8.9 3.5 9.8 3 10.8 3C12.3 3 13.5 4.2 13.5 5.7C13.5 5.9 13.5 6.1 13.4 6.3C13.8 6.7 14 7.1 14 7.6" stroke-linecap="round"/>
+        <path d="M8 9v4M6 11l2 2 2-2"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-name">DeskFlow</div>
+      <div class="logo-tag">Support Platform</div>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Workspace</div>
+    <a class="nav-item active" href="#">
+      <svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M5 7h6M5 10h4"/></svg>
+      All Tickets
+      <span class="nav-badge">24</span>
+    </a>
+    <a class="nav-item" href="#">
+      <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5L10 10"/></svg>
+      My Queue
+      <span class="nav-badge muted">8</span>
+    </a>
+    <a class="nav-item" href="#">
+      <svg viewBox="0 0 16 16"><path d="M13 7A5 5 0 1 1 3 7a5 5 0 0 1 10 0ZM13 13l2 2"/></svg>
+      Search
+    </a>
+    <a class="nav-item" href="#">
+      <svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h8M2 12h5"/></svg>
+      Reports
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Views</div>
+    <a class="nav-item" href="#">
+      <span class="priority-dot p-urgent"></span>
+      Urgent
+      <span class="nav-badge muted">5</span>
+    </a>
+    <a class="nav-item" href="#">
+      <span class="priority-dot p-high"></span>
+      Unassigned
+      <span class="nav-badge muted">11</span>
+    </a>
+    <a class="nav-item" href="#">
+      <svg viewBox="0 0 16 16"><path d="M8 2L10 6l4 .6-3 2.9.7 4L8 11.5 4.3 13.5l.7-4L2 6.6 6 6z"/></svg>
+      Starred
+      <span class="nav-badge muted">3</span>
+    </a>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Agents</div>
+  </div>
+  <div class="sidebar-agents">
+    <div class="agent-item">
+      <div class="agent-avatar" style="background:#2D5BE3">LD</div>
+      <span class="agent-name">Lena Dahl</span>
+      <span class="agent-status status-online"></span>
+    </div>
+    <div class="agent-item">
+      <div class="agent-avatar" style="background:#5B3FB5">MK</div>
+      <span class="agent-name">Marc Kim</span>
+      <span class="agent-status status-busy"></span>
+    </div>
+    <div class="agent-item">
+      <div class="agent-avatar" style="background:#0F6E56">OA</div>
+      <span class="agent-name">Ola Andersen</span>
+      <span class="agent-status status-online"></span>
+    </div>
+    <div class="agent-item">
+      <div class="agent-avatar" style="background:#B92A2A">PR</div>
+      <span class="agent-name">Priya Rao</span>
+      <span class="agent-status status-offline"></span>
+    </div>
+  </div>
+
+  <div class="sidebar-bottom">
+    <div class="user-card">
+      <div class="user-card-avatar">YO</div>
+      <div class="user-card-info">
+        <div class="user-card-name">You (Admin)</div>
+        <div class="user-card-role">Support Lead</div>
+      </div>
+      <div class="user-card-icon">
+        <svg viewBox="0 0 14 14"><path d="M7 1a6 6 0 1 1 0 12A6 6 0 0 1 7 1zM7 5v2.5L8.5 9"/></svg>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-title">
+      All Tickets
+      <span>— 24 open</span>
+    </div>
+    <div class="search-wrap">
+      <svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="5"/><path d="m11 11 3 3"/></svg>
+      <input class="search-input" type="text" placeholder="Search tickets…">
+    </div>
+    <button class="btn btn-ghost">
+      <svg viewBox="0 0 16 16"><path d="M1.5 4h13M4 8h8M6.5 12h3"/></svg>
+      Filter
+    </button>
+    <button class="btn btn-primary">
+      <svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg>
+      New Ticket
+    </button>
+    <div class="icon-btn">
+      <svg viewBox="0 0 16 16"><path d="M8 2a5 5 0 0 1 4.9 4c.4 2-1 3.5-1 5H4.1c0-1.5-1.4-3-1-5A5 5 0 0 1 8 2z"/><path d="M6 12.5a2 2 0 0 0 4 0"/></svg>
+      <span class="notif-dot"></span>
+    </div>
+    <div class="icon-btn">
+      <svg viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="2.5"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content-area">
+
+    <!-- TICKET LIST -->
+    <div class="ticket-list-panel">
+      <div class="panel-header">
+        <div class="panel-title">Tickets</div>
+        <button class="btn btn-ghost" style="padding:4px 8px;font-size:12px;">Sort ↕</button>
+        <div class="icon-btn" style="width:28px;height:28px;">
+          <svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+        </div>
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active">All</button>
+        <button class="filter-tab">Open</button>
+        <button class="filter-tab">Pending</button>
+        <button class="filter-tab">Resolved</button>
+      </div>
+      <div class="ticket-scroll" style="padding-top:10px;">
+
+        <!-- TICKET 1 — selected -->
+        <div class="ticket-item selected">
+          <div class="ticket-top">
+            <div class="ticket-avatar" style="background:#2D5BE3">SR</div>
+            <div class="ticket-meta">
+              <div class="ticket-name">Sara Reyes</div>
+              <div class="ticket-subject">Can't log in — account locked</div>
+            </div>
+            <div class="ticket-time">2m</div>
+          </div>
+          <div class="ticket-preview">I've tried resetting my password twice and still can't get in…</div>
+          <div class="ticket-footer">
+            <span class="badge badge-urgent">Urgent</span>
+            <span class="badge badge-tag">Auth</span>
+            <span class="unread-dot"></span>
+          </div>
+        </div>
+
+        <!-- TICKET 2 -->
+        <div class="ticket-item">
+          <div class="ticket-top">
+            <div class="ticket-avatar" style="background:#5B3FB5">AT</div>
+            <div class="ticket-meta">
+              <div class="ticket-name">Adam Torres</div>
+              <div class="ticket-subject">Invoice #4421 is incorrect</div>
+            </div>
+            <div class="ticket-time">18m</div>
+          </div>
+          <div class="ticket-preview">The amount charged doesn't match what was quoted in our contract…</div>
+          <div class="ticket-footer">
+            <span class="badge badge-open">Open</span>
+            <span class="badge badge-tag">Billing</span>
+          </div>
+        </div>
+
+        <!-- TICKET 3 -->
+        <div class="ticket-item">
+          <div class="ticket-top">
+            <div class="ticket-avatar" style="background:#0F6E56">NL</div>
+            <div class="ticket-meta">
+              <div class="ticket-name">Nina Larsen</div>
+              <div class="ticket-subject">API integration keeps timing out</div>
+            </div>
+            <div class="ticket-time">1h</div>
+          </div>
+          <div class="ticket-preview">Every request to /v2/events returns a 504 after about 30 seconds…</div>
+          <div class="ticket-footer">
+            <span class="badge badge-open">Open</span>
+            <span class="badge badge-tag">API</span>
+            <span class="badge badge-tag">Technical</span>
+            <span class="unread-dot"></span>
+          </div>
+        </div>
+
+        <!-- TICKET 4 -->
+        <div class="ticket-item">
+          <div class="ticket-top">
+            <div class="ticket-avatar" style="background:#92520A">JB</div>
+            <div class="ticket-meta">
+              <div class="ticket-name">James Burke</div>
+              <div class="ticket-subject">Feature request: CSV export</div>
+            </div>
+            <div class="ticket-time">3h</div>
+          </div>
+          <div class="ticket-preview">It would save us a lot of time if we could export reports as CSV…</div>
+          <div class="ticket-footer">
+            <span class="badge badge-pending">Pending</span>
+            <span class="badge badge-tag">Feature</span>
+          </div>
+        </div>
+
+        <!-- TICKET 5 -->
+        <div class="ticket-item">
+          <div class="ticket-top">
+            <div class="ticket-avatar" style="background:#B92A2A">EC</div>
+            <div class="ticket-meta">
+              <div class="ticket-name">Ella Chen</div>
+              <div class="ticket-subject">Dashboard not loading for team</div>
+            </div>
+            <div class="ticket-time">5h</div>
+          </div>
+          <div class="ticket-preview">Three of my colleagues can't see the dashboard since this morning…</div>
+          <div class="ticket-footer">
+            <span class="badge badge-open">Open</span>
+            <span class="badge badge-tag">Bug</span>
+          </div>
+        </div>
+
+        <!-- TICKET 6 -->
+        <div class="ticket-item">
+          <div class="ticket-top">
+            <div class="ticket-avatar" style="background:#1E7A4A">RH</div>
+            <div class="ticket-meta">
+              <div class="ticket-name">Raj Hooda</div>
+              <div class="ticket-subject">SSO setup for enterprise plan</div>
+            </div>
+            <div class="ticket-time">8h</div>
+          </div>
+          <div class="ticket-preview">We need help configuring SAML SSO with Okta for our team…</div>
+          <div class="ticket-footer">
+            <span class="badge badge-new">New</span>
+            <span class="badge badge-tag">Onboarding</span>
+          </div>
+        </div>
+
+        <!-- TICKET 7 -->
+        <div class="ticket-item">
+          <div class="ticket-top">
+            <div class="ticket-avatar" style="background:#5B3FB5">MF</div>
+            <div class="ticket-meta">
+              <div class="ticket-name">Maria Flores</div>
+              <div class="ticket-subject">Upgrade to Pro plan</div>
+            </div>
+            <div class="ticket-time">1d</div>
+          </div>
+          <div class="ticket-preview">I'd like to upgrade my account and need info on the Pro features…</div>
+          <div class="ticket-footer">
+            <span class="badge badge-resolved">Resolved</span>
+            <span class="badge badge-tag">Billing</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TICKET DETAIL -->
+    <div class="ticket-detail">
+
+      <!-- Stats strip -->
+      <div class="stats-strip">
+        <div class="stat-item">
+          <span class="stat-label">Open today</span>
+          <span class="stat-value">24</span>
+          <span class="stat-change stat-up">↑ 3 vs yesterday</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Avg. response</span>
+          <span class="stat-value">4.2m</span>
+          <span class="stat-change stat-up">↑ Better</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">CSAT</span>
+          <span class="stat-value">96%</span>
+          <span class="stat-change stat-down">↓ 2%</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Resolved today</span>
+          <span class="stat-value">18</span>
+          <span class="stat-change stat-up">↑ 5</span>
+        </div>
+      </div>
+
+      <!-- Detail header -->
+      <div class="detail-header">
+        <div class="detail-header-info">
+          <div class="detail-ticket-id">#TK-2041</div>
+          <div class="detail-title">Can't log in — account locked after reset</div>
+          <div class="detail-meta">
+            <span class="badge badge-urgent">Urgent</span>
+            <span class="detail-meta-item">
+              <svg viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="5.5"/><path d="M6.5 4v3L8 8.5"/></svg>
+              Opened 2 min ago
+            </span>
+            <span class="detail-meta-item">
+              <svg viewBox="0 0 13 13"><circle cx="6.5" cy="5" r="2.5"/><path d="M2 12c0-2.5 2-4.5 4.5-4.5S11 9.5 11 12"/></svg>
+              Sara Reyes · sara@acmecorp.com
+            </span>
+            <span class="detail-meta-item">
+              <svg viewBox="0 0 13 13"><rect x="1.5" y="2.5" width="10" height="8" rx="1"/><path d="M4.5 1v3M8.5 1v3M1.5 7h10"/></svg>
+              Acme Corp · Enterprise
+            </span>
+          </div>
+        </div>
+        <div class="detail-actions">
+          <select class="status-select">
+            <option>🔴 Urgent</option>
+            <option>🟡 High</option>
+            <option>🔵 Medium</option>
+            <option>🟢 Low</option>
+          </select>
+          <button class="btn btn-ghost">Merge</button>
+          <button class="btn btn-ghost">
+            <svg viewBox="0 0 16 16"><path d="M2 14l2-6L12 2l2 2-8 8-6 2z"/></svg>
+            Resolve
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="detail-body">
+
+        <!-- Conversation -->
+        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;">
+          <div class="conversation">
+
+            <!-- Customer message -->
+            <div class="message">
+              <div class="msg-avatar" style="background:#2D5BE3">SR</div>
+              <div class="msg-content">
+                <div class="msg-header">
+                  <span class="msg-name">Sara Reyes</span>
+                  <span class="msg-time">Today, 9:41 AM</span>
+                </div>
+                <div class="msg-bubble">
+                  Hi — I've been locked out of my account since this morning. I tried resetting my password twice but after entering the new password it just says "invalid credentials" and locks me out again. This is really urgent as I have a presentation in 2 hours.
+                </div>
+              </div>
+            </div>
+
+            <!-- Agent note -->
+            <div class="message">
+              <div class="msg-avatar" style="background:#5B3FB5;opacity:0.7">MK</div>
+              <div class="msg-content">
+                <div class="msg-header">
+                  <span class="msg-name">Marc Kim</span>
+                  <span class="msg-time">Today, 9:44 AM</span>
+                </div>
+                <div class="msg-note">
+                  <div class="note-label">Internal Note</div>
+                  Checked the auth logs — account is flagged for suspicious login attempts from a new IP. Security policy auto-locked it. Need to verify identity before unlocking. Looping in @Lena.
+                </div>
+              </div>
+            </div>
+
+            <!-- Agent reply -->
+            <div class="message agent">
+              <div class="msg-avatar" style="background:#0F6E56">LD</div>
+              <div class="msg-content">
+                <div class="msg-header">
+                  <span class="msg-name">Lena Dahl</span>
+                  <span class="msg-time">Today, 9:47 AM</span>
+                </div>
+                <div class="msg-bubble">
+                  Hi Sara, thanks for reaching out. I can see your account was temporarily locked for security reasons. I've confirmed your identity via the email on file. Can you please confirm your company name and the last 4 digits of the card used for billing so I can unlock your account right away?
+                </div>
+              </div>
+            </div>
+
+            <!-- Customer reply -->
+            <div class="message">
+              <div class="msg-avatar" style="background:#2D5BE3">SR</div>
+              <div class="msg-content">
+                <div class="msg-header">
+                  <span class="msg-name">Sara Reyes</span>
+                  <span class="msg-time">Today, 9:49 AM</span>
+                </div>
+                <div class="msg-bubble">
+                  Of course! Company is Acme Corp, last 4 digits are 8821. Please hurry, I really need this sorted before 10 AM.
+                </div>
+                <div class="msg-attachment">
+                  <svg viewBox="0 0 14 14"><rect x="1.5" y="1.5" width="11" height="11" rx="1.5"/><path d="M4.5 4.5h5M4.5 7h5M4.5 9.5h3"/></svg>
+                  <div>
+                    <div class="msg-attachment-name">screenshot-error.png</div>
+                    <div class="msg-attachment-size">142 KB · PNG</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Reply area -->
+          <div class="reply-area">
+            <div class="reply-tabs">
+              <button class="reply-tab active">Reply</button>
+              <button class="reply-tab">Note</button>
+              <button class="reply-tab">Forward</button>
+            </div>
+            <textarea class="reply-input" placeholder="Write a reply to Sara…"></textarea>
+            <div class="reply-footer">
+              <div class="reply-toolbar">
+                <button class="toolbar-btn" title="Bold">
+                  <svg viewBox="0 0 15 15"><path d="M4 2.5h4a3 3 0 0 1 0 6H4zm0 6h4.5a3.5 3.5 0 0 1 0 7H4z"/></svg>
+                </button>
+                <button class="toolbar-btn" title="Italic">
+                  <svg viewBox="0 0 15 15"><path d="M6 2.5h4M5 12.5h4M8 2.5 6.5 12.5"/></svg>
+                </button>
+                <button class="toolbar-btn" title="Link">
+                  <svg viewBox="0 0 15 15"><path d="M6 9a3 3 0 0 1 0-4.2L7.8 3A3 3 0 1 1 12 7.2L10.2 9M9 6a3 3 0 0 1 0 4.2L7.2 12A3 3 0 1 1 3 7.8L4.8 6"/></svg>
+                </button>
+                <button class="toolbar-btn" title="Attach">
+                  <svg viewBox="0 0 15 15"><path d="M13 7.5 7.2 13.3a3.7 3.7 0 0 1-5.2-5.2L7.8 2.3A2.5 2.5 0 1 1 11.3 5.8L5.5 11.6a1.2 1.2 0 0 1-1.7-1.7L9.5 4.2"/></svg>
+                </button>
+                <button class="toolbar-btn" title="Template">
+                  <svg viewBox="0 0 15 15"><rect x="1.5" y="1.5" width="12" height="12" rx="1.5"/><path d="M4.5 5.5h6M4.5 8h6M4.5 10.5h3.5"/></svg>
+                </button>
+              </div>
+              <button class="btn btn-ghost">Save Draft</button>
+              <button class="btn btn-primary">Send Reply</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right sidebar -->
+        <div class="detail-sidebar">
+
+          <div>
+            <div class="ds-section-title">Ticket Info</div>
+            <div class="ds-field">
+              <div class="ds-label">Status</div>
+              <span class="badge badge-urgent">Urgent · Open</span>
+            </div>
+            <div class="ds-field">
+              <div class="ds-label">Priority</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+                <span class="priority-dot p-urgent"></span>
+                <span class="ds-value">Urgent</span>
+              </div>
+            </div>
+            <div class="ds-field">
+              <div class="ds-label">Channel</div>
+              <div class="ds-value">📧 Email</div>
+            </div>
+            <div class="ds-field">
+              <div class="ds-label">SLA</div>
+              <div class="ds-value" style="color:var(--red);">Breaches in 47m</div>
+              <div class="progress-bar"><div class="progress-fill" style="width:62%;background:var(--red);"></div></div>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <div>
+            <div class="ds-section-title">Assignee</div>
+            <div class="assignee-row">
+              <div class="agent-avatar" style="width:26px;height:26px;background:#0F6E56;font-size:10px;color:#fff;display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:600;">LD</div>
+              <div>
+                <div style="font-size:13px;font-weight:500;">Lena Dahl</div>
+                <div style="font-size:11px;color:var(--text-tertiary);">Online now</div>
+              </div>
+              <svg viewBox="0 0 14 14"><path d="M5 3l4 4-4 4"/></svg>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <div>
+            <div class="ds-section-title">Customer</div>
+            <div class="ds-field">
+              <div class="ds-label">Name</div>
+              <div class="ds-value link">Sara Reyes</div>
+            </div>
+            <div class="ds-field">
+              <div class="ds-label">Email</div>
+              <div class="ds-value link">sara@acmecorp.com</div>
+            </div>
+            <div class="ds-field">
+              <div class="ds-label">Company</div>
+              <div class="ds-value link">Acme Corp</div>
+            </div>
+            <div class="ds-field">
+              <div class="ds-label">Plan</div>
+              <div class="ds-value">Enterprise</div>
+            </div>
+            <div class="ds-field">
+              <div class="ds-label">Tickets</div>
+              <div class="ds-value">3 total · 1 open</div>
+            </div>
+            <div class="ds-field">
+              <div class="ds-label">CSAT</div>
+              <div class="csat-stars">
+                <svg viewBox="0 0 12 12"><path d="M6 1l1.3 3.9H11L8.1 7.1l1 3.9L6 8.8l-3.1 2.2 1-3.9L1 4.9h3.7z"/></svg>
+                <svg viewBox="0 0 12 12"><path d="M6 1l1.3 3.9H11L8.1 7.1l1 3.9L6 8.8l-3.1 2.2 1-3.9L1 4.9h3.7z"/></svg>
+                <svg viewBox="0 0 12 12"><path d="M6 1l1.3 3.9H11L8.1 7.1l1 3.9L6 8.8l-3.1 2.2 1-3.9L1 4.9h3.7z"/></svg>
+                <svg viewBox="0 0 12 12"><path d="M6 1l1.3 3.9H11L8.1 7.1l1 3.9L6 8.8l-3.1 2.2 1-3.9L1 4.9h3.7z"/></svg>
+                <svg class="empty" viewBox="0 0 12 12"><path d="M6 1l1.3 3.9H11L8.1 7.1l1 3.9L6 8.8l-3.1 2.2 1-3.9L1 4.9h3.7z"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <div>
+            <div class="ds-section-title">Tags</div>
+            <div class="tag-list">
+              <span class="tag-item">auth</span>
+              <span class="tag-item">account-lock</span>
+              <span class="tag-item">enterprise</span>
+              <span class="tag-item">+ Add tag</span>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <div>
+            <div class="ds-section-title">Activity</div>
+            <div class="timeline">
+              <div class="timeline-item">
+                <div class="timeline-dot accent">
+                  <svg viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3"/></svg>
+                </div>
+                <div class="timeline-line"></div>
+                <div class="timeline-text">
+                  <div class="timeline-action"><strong>Lena Dahl</strong> replied</div>
+                  <div class="timeline-time">9:47 AM</div>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-dot">
+                  <svg viewBox="0 0 10 10"><path d="M2 3l3 3 3-3"/></svg>
+                </div>
+                <div class="timeline-line"></div>
+                <div class="timeline-text">
+                  <div class="timeline-action"><strong>Marc Kim</strong> added a note</div>
+                  <div class="timeline-time">9:44 AM</div>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-dot">
+                  <svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3"/></svg>
+                </div>
+                <div class="timeline-line"></div>
+                <div class="timeline-text">
+                  <div class="timeline-action">Assigned to <strong>Lena Dahl</strong></div>
+                  <div class="timeline-time">9:42 AM</div>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-dot">
+                  <svg viewBox="0 0 10 10"><path d="M3 2h4M5 2v6M2 8h6"/></svg>
+                </div>
+                <div class="timeline-text">
+                  <div class="timeline-action">Ticket created by <strong>Sara Reyes</strong></div>
+                  <div class="timeline-time">9:41 AM</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Tab switching — filter tabs
+  document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      this.closest('.filter-tabs').querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // Ticket selection
+  document.querySelectorAll('.ticket-item').forEach(item => {
+    item.addEventListener('click', function() {
+      document.querySelectorAll('.ticket-item').forEach(t => t.classList.remove('selected'));
+      this.classList.add('selected');
+    });
+  });
+
+  // Reply tabs
+  document.querySelectorAll('.reply-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      this.closest('.reply-tabs').querySelectorAll('.reply-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      const area = this.closest('.reply-area').querySelector('.reply-input');
+      if (this.textContent === 'Note') {
+        area.placeholder = 'Add an internal note…';
+        area.style.background = '#FFFBEC';
+        area.style.borderColor = '#F5E09A';
+      } else if (this.textContent === 'Forward') {
+        area.placeholder = 'Forward to an email address…';
+        area.style.background = '';
+        area.style.borderColor = '';
+      } else {
+        area.placeholder = 'Write a reply to Sara…';
+        area.style.background = '';
+        area.style.borderColor = '';
+      }
+    });
+  });
+
+  // Nav items
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

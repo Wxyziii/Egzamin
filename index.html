@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeskFlow HelpDesk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <div class="logo-row">
+        <div class="logo-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M5 7.5A3.5 3.5 0 0 1 8.5 4h7A3.5 3.5 0 0 1 19 7.5v5A3.5 3.5 0 0 1 15.5 16H12l-4 3v-3A3.5 3.5 0 0 1 5 12.5z"/></svg>
+        </div>
+        <div>
+          <div class="logo-name">DeskFlow</div>
+          <div class="logo-tag">HelpDesk eksamen</div>
+        </div>
+      </div>
+
+      <div id="loading-state" class="state-panel">
+        <div class="loader" aria-hidden="true"></div>
+        <h1>Sjekker rolle mot Active Directory...</h1>
+        <p>C++ backend kontrollerer AD-grupper via LDAP for a finne riktig dashboard.</p>
+      </div>
+
+      <form id="login-state" class="state-panel hidden" autocomplete="on">
+        <h1>Logg inn med AD-bruker</h1>
+        <p>Automatisk rolleoppslag fant ingen gyldig rolle. Rollen hentes fortsatt fra AD-grupper.</p>
+        <label>
+          Brukernavn
+          <input id="login-username" name="username" type="text" autocomplete="username" required>
+        </label>
+        <label>
+          Passord
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <div id="login-error" class="error-message" role="alert"></div>
+        <button class="btn btn-primary" type="submit">Logg inn</button>
+      </form>
+
+      <div id="ad-error-state" class="state-panel hidden">
+        <h1>Active Directory er ikke tilgjengelig</h1>
+        <p id="ad-error-message">Kun brukere med verifisert AD-rolle kan apne HelpDesk.</p>
+        <button id="retry-auth" class="btn btn-ghost" type="button">Prov igjen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-shell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M5 7.5A3.5 3.5 0 0 1 8.5 4h7A3.5 3.5 0 0 1 19 7.5v5A3.5 3.5 0 0 1 15.5 16H12l-4 3v-3A3.5 3.5 0 0 1 5 12.5z"/></svg>
+        </div>
+        <div>
+          <div class="logo-name">DeskFlow</div>
+          <div class="logo-tag">AD HelpDesk</div>
+        </div>
+      </div>
+
+      <nav>
+        <div class="sidebar-section">
+          <div class="sidebar-section-label">Arbeidsflate</div>
+          <div id="role-nav"></div>
+        </div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-label">Felles</div>
+          <button class="nav-item" data-view="knowledge" type="button">Kunnskapsbase</button>
+          <button class="nav-item" data-view="messages" type="button">Chat/meldinger</button>
+        </div>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="user-card">
+          <div id="user-avatar" class="user-card-avatar">AD</div>
+          <div class="user-card-info">
+            <div id="user-name" class="user-card-name">Ukjent</div>
+            <div id="user-role" class="user-card-role">Rolle ikke lastet</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div id="page-title" class="topbar-title">HelpDesk</div>
+          <div id="auth-source" class="auth-source"></div>
+        </div>
+        <div class="search-wrap">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+          <input id="ticket-search" class="search-input" type="search" placeholder="Sok i saker">
+        </div>
+        <button class="icon-btn" type="button" title="Varsler">
+          <svg viewBox="0 0 16 16"><path d="M8 14a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2ZM13 11H3l1.2-1.6V6a3.8 3.8 0 0 1 7.6 0v3.4L13 11Z"/></svg>
+          <span class="notif-dot"></span>
+        </button>
+        <button id="new-ticket-button" class="btn btn-primary" type="button">Ny sak</button>
+      </header>
+
+      <section id="notification-area" class="notification-area" aria-live="polite"></section>
+      <section id="main-view" class="content-area"></section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

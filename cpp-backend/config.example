@@ -1,0 +1,9 @@
+# Copy this file to /etc/helpdesk-ldap.conf on Ubuntu.
+# Do not commit the real service account password.
+
+LDAP_URI=ldap://192.168.51.2
+BASE_DN=DC=eksamen,DC=local
+BIND_DN=CN=svc_helpdesk_ldap,OU=Service Accounts,DC=eksamen,DC=local
+BIND_PASSWORD=change-me
+USER_DOMAIN=eksamen.local
+START_TLS=false
