@@ -17,5 +17,5 @@ set(COMMON_SOURCES
 add_executable(ad-bootstrap main_bootstrap.cpp ${COMMON_SOURCES})
 target_link_libraries(ad-bootstrap PRIVATE ${LDAP_LIBRARY} ${LBER_LIBRARY})
 
-add_executable(ad-login main_login.cpp ${COMMON_SOURCES})
+add_executable(ad-login main_login.cpp AuditLogger.cpp ${COMMON_SOURCES})
 target_link_libraries(ad-login PRIVATE ${LDAP_LIBRARY} ${LBER_LIBRARY})

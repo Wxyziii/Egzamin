@@ -2,7 +2,7 @@
 
 ## Overview
 
-This HelpDesk exam project has a Vite/React frontend served by Apache from `/var/www/helpdesk` and a C++ CGI backend deployed in `/usr/lib/cgi-bin`. The frontend calls the CGI endpoints to detect the signed-in Active Directory user automatically or to fall back to manual AD login.
+This HelpDesk exam project has a Vite/React frontend served by Apache from `/var/www/helpdesk` and a C++ CGI backend deployed in `/usr/lib/cgi-bin`. Kerberos/SSO was tested earlier, but it is now disabled for exam stability. The active login method is traditional AD username/password login through `/cgi-bin/ad-login`, and role detection still comes from AD groups.
 
 ## Network/IP overview
 
@@ -50,11 +50,13 @@ START_TLS=0
 
 `ad-login` accepts a username and password from the frontend, finds the AD user, validates the password with LDAP bind, reads `memberOf`, and maps group membership to a HelpDesk role. Secrets must stay only in `/etc/helpdesk-ldap.conf` or a secure equivalent, never in Git.
 
-## Kerberos automatic login explanation
+## Kerberos automatic login status
 
-`ad-bootstrap` is designed for automatic login. Apache Kerberos/GSSAPI authenticates the browser and sets `REMOTE_USER`; the CGI normalizes that value, looks up the user in LDAP, reads `memberOf`, and returns the mapped HelpDesk role.
+Kerberos/SSO was tested during setup, but it is not the active main login method anymore. The Apache `helpdesk-kerberos` config is disabled, and the frontend does not call `/cgi-bin/ad-bootstrap` on page load.
 
-The intended Apache config protects only `/cgi-bin/ad-bootstrap`:
+`ad-bootstrap` remains deployed only as a harmless compatibility endpoint. It returns JSON telling the client to use manual AD login.
+
+Historical Kerberos config protected only `/cgi-bin/ad-bootstrap`:
 
 ```apache
 <Location "/cgi-bin/ad-bootstrap">
@@ -171,7 +173,7 @@ skole.local = SKOLE.LOCAL
 | Apache serves `http://helpdesk.skole.local/` | Passed |
 | `GET /cgi-bin/ad-bootstrap` is not 404 | Passed; returned JSON `manual_login_required` without Kerberos browser context |
 | `GET /cgi-bin/ad-login` is not 404 | Passed; returned JSON `login_failed` because no credentials were submitted |
-| Frontend bundle references `/cgi-bin/ad-bootstrap` and `/cgi-bin/ad-login` | Passed |
+| Current frontend bundle references `/cgi-bin/ad-login` only | Passed |
 | `apache2ctl configtest` | Passed |
 | `node -v` / `npm -v` | Passed; Node `v20.20.2`, npm `10.8.2` |
 | `auth_gssapi` installed/enabled | Failed in accessible checks; package/module was not listed |
@@ -191,7 +193,7 @@ skole.local = SKOLE.LOCAL
 - The deployed CGI binaries match the latest local C++ build.
 - Apache serves the HelpDesk page from `http://helpdesk.skole.local`.
 - Both CGI endpoints are reachable and return JSON instead of 404.
-- The frontend calls the correct CGI endpoints.
+- The frontend calls the active `/cgi-bin/ad-login` endpoint and no longer calls `/cgi-bin/ad-bootstrap` on page load.
 - The frontend source now handles non-JSON Apache/CGI error pages cleanly instead of throwing a JSON parsing error. Run the admin deploy command above to publish this final frontend bundle.
 - `/etc/helpdesk-ldap.conf` exists with `root:www-data` ownership and `640` permissions.
 - `/etc/apache2/helpdesk.keytab` exists with `root:www-data` ownership and `640` permissions.

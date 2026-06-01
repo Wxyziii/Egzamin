@@ -2,10 +2,10 @@
 
 This folder builds two Apache CGI executables:
 
-- `ad-bootstrap` - automatic role check using Apache-provided user identity
-- `ad-login` - manual AD username/password login with LDAP bind
+- `ad-bootstrap` - compatibility endpoint that returns JSON telling the frontend to use manual login
+- `ad-login` - active manual AD username/password login with LDAP bind and audit logging
 
-Both endpoints return JSON consumed by `app.js`.
+Both endpoints return JSON consumed by the frontend. Traditional AD login through `ad-login` is the active exam flow.
 
 ## Build
 
@@ -48,6 +48,8 @@ The program can also read these environment variables:
    - `GG_HelpDesk_User` -> `user`
 
 Manual login additionally binds as the found user DN with the submitted password before returning a role.
+
+`ad-login` writes password-free audit entries to `/var/log/helpdesk-auth.log` through `AuditLogger.cpp`.
 
 ## Apache deployment
 

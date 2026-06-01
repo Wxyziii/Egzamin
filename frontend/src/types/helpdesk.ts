@@ -24,7 +24,7 @@ export type Session = {
 };
 
 export type AuthResponse =
-  | ({ status: 'auto_login_ok' | 'manual_login_ok' } & Session)
+  | ({ status: 'manual_login_ok' } & Session)
   | { status: 'manual_login_required'; message: string }
   | { status: 'ad_error'; message: string }
   | { status: 'login_failed'; message: string };

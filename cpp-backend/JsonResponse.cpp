@@ -23,7 +23,7 @@ std::string escape(const std::string& value) {
 }
 
 std::string manualLoginRequired() {
-    return "{\"status\":\"manual_login_required\",\"message\":\"Could not find AD role automatically\"}";
+    return "{\"status\":\"manual_login_required\",\"message\":\"Automatic login is disabled. Use manual AD login.\"}";
 }
 
 std::string adError(const std::string& message) {

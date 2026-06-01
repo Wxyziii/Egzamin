@@ -15,16 +15,14 @@ The original static `helpdesk.html` mockup is still present as a visual referenc
 Security boundary:
 
 1. Browser opens the React app.
-2. React shows `Sjekker rolle mot Active Directory...`.
-3. React calls `/cgi-bin/ad-bootstrap`.
-4. C++ reads the authenticated user if Apache provides one.
-5. C++ checks AD groups with LDAP.
-6. If automatic lookup fails, React shows manual AD login.
-7. Manual login posts to `/cgi-bin/ad-login`.
-8. C++ validates the password with LDAP bind and maps AD groups to HelpDesk roles.
-9. React renders dashboards only after backend role JSON is returned.
+2. React shows the traditional AD login form first.
+3. Manual login posts to `/cgi-bin/ad-login`.
+4. C++ validates the password with LDAP bind and maps AD groups to HelpDesk roles.
+5. C++ writes a password-free audit log entry to `/var/log/helpdesk-auth.log`.
+6. React renders dashboards only after backend role JSON is returned.
 
 The frontend never lets a user choose admin/support/user manually.
+Kerberos/SSO was tested earlier, but it is disabled for exam stability. The active login method is traditional AD username/password login through `/cgi-bin/ad-login`.
 
 ## AD groups
 
@@ -77,7 +75,6 @@ Mock users:
 
 Mock mode is only active in Vite development. Production builds call the real C++ CGI endpoints:
 
-- `/cgi-bin/ad-bootstrap`
 - `/cgi-bin/ad-login`
 
 To force real endpoints during Vite development:
@@ -176,26 +173,22 @@ sudo chmod +x /usr/lib/cgi-bin/ad-login
 
 ## Test backend endpoints
 
-Automatic role check:
+Compatibility bootstrap endpoint:
 
 ```text
 http://192.168.51.3/cgi-bin/ad-bootstrap
 ```
 
-Expected automatic success:
+Expected response:
 
 ```json
 {
-  "status": "auto_login_ok",
-  "username": "support1",
-  "role": "support",
-  "matchedGroup": "GG_HelpDesk_Support",
-  "source": "Active Directory",
-  "checkedBy": "C++ LDAP Role Resolver"
+  "status": "manual_login_required",
+  "message": "Automatic login is disabled. Use manual AD login."
 }
 ```
 
-Manual login:
+Active manual login:
 
 ```bash
 curl -i \
@@ -240,8 +233,8 @@ This is clearly commented in `frontend/src/state/helpdeskStore.ts` as demo-only 
 - Run `npm run build`
 - Deploy `frontend/dist/*` to Apache
 - Build and deploy C++ CGI endpoints
-- Test `/cgi-bin/ad-bootstrap`
 - Test `/cgi-bin/ad-login`
+- Confirm `/cgi-bin/ad-bootstrap` returns manual-login-required JSON
 
 Internal note permission test:
 

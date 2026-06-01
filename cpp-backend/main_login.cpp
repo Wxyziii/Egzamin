@@ -1,3 +1,4 @@
+#include "AuditLogger.h"
 #include "Config.h"
 #include "JsonResponse.h"
 #include "LdapClient.h"
@@ -20,6 +21,11 @@ std::string readRequestBody() {
     std::cin.read(body.data(), length);
     body.resize(static_cast<size_t>(std::cin.gcount()));
     return body;
+}
+
+std::string envValue(const char* key) {
+    if (const char* value = std::getenv(key); value && *value) return value;
+    return "";
 }
 
 std::string jsonField(const std::string& body, const std::string& field) {
@@ -53,12 +59,15 @@ std::string jsonField(const std::string& body, const std::string& field) {
 } // namespace
 
 int main() {
+    std::string username;
+    std::string clientIp = envValue("REMOTE_ADDR");
     try {
         const std::string body = readRequestBody();
-        const std::string username = jsonField(body, "username");
+        username = jsonField(body, "username");
         const std::string password = jsonField(body, "password");
 
         if (username.empty() || password.empty()) {
+            AuditLogger::logLoginAttempt(username, false, "none", clientIp);
             JsonResponse::writeJson(JsonResponse::loginError("Username and password are required"));
             return 0;
         }
@@ -70,13 +79,16 @@ int main() {
         const auto role = resolver.resolve(user.username, user.memberOf);
 
         if (!role) {
+            AuditLogger::logLoginAttempt(username, false, "none", clientIp);
             JsonResponse::writeJson(JsonResponse::loginError("AD login succeeded, but no HelpDesk role group matched"));
             return 0;
         }
 
+        AuditLogger::logLoginAttempt(user.username, true, role->role, clientIp);
         JsonResponse::writeJson(JsonResponse::roleOk("manual_login_ok", *role));
         return 0;
     } catch (const std::exception& ex) {
+        AuditLogger::logLoginAttempt(username, false, "none", clientIp);
         const std::string message = ex.what();
         if (message.find("Invalid credentials") != std::string::npos ||
             message.find("User not found") != std::string::npos ||

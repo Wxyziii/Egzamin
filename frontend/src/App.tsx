@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { bootstrapAuth, manualLogin } from './api/authApi';
+import { useMemo, useState } from 'react';
+import { manualLogin } from './api/authApi';
 import AdminDashboard from './components/AdminDashboard';
 import KnowledgeBase from './components/KnowledgeBase';
 import LoadingScreen from './components/LoadingScreen';
@@ -16,46 +16,30 @@ import type { Session, ViewKey } from './types/helpdesk';
 type AuthState = 'loading' | 'manual' | 'ready' | 'error';
 
 export default function App() {
-  const [authState, setAuthState] = useState<AuthState>('loading');
+  const [authState, setAuthState] = useState<AuthState>('manual');
   const [session, setSession] = useState<Session | null>(null);
   const [authError, setAuthError] = useState('');
   const [currentView, setCurrentView] = useState<ViewKey>('queue');
   const [query, setQuery] = useState('');
   const store = useHelpdeskStore(session);
 
-  useEffect(() => {
-    // Security boundary: React does not decide roles. It only renders after C++/AD backend JSON says who the user is.
-    bootstrapAuth()
-      .then(result => {
-        if (result.status === 'auto_login_ok') {
-          const nextSession = sessionFromResult(result);
-          setSession(nextSession);
-          setCurrentView(defaultView(nextSession.role));
-          setAuthState('ready');
-        } else if (result.status === 'manual_login_required') {
-          setAuthState('manual');
-        } else if (result.status === 'ad_error' || result.status === 'login_failed') {
-          setAuthError(result.message);
-          setAuthState('error');
-        }
-      })
-      .catch(() => {
-        setAuthError('Automatisk sjekk kunne ikke fullfores. Logg inn manuelt med AD-bruker.');
-        setAuthState('manual');
-      });
-  }, []);
-
   async function handleLogin(username: string, password: string) {
-    const result = await manualLogin(username, password);
-    if (result.status === 'manual_login_ok') {
-      const nextSession = sessionFromResult(result);
-      setSession(nextSession);
-      setCurrentView(defaultView(nextSession.role));
-      setAuthState('ready');
-      setAuthError('');
-      return;
+    try {
+      const result = await manualLogin(username, password);
+      if (result.status === 'manual_login_ok') {
+        const nextSession = sessionFromResult(result);
+        setSession(nextSession);
+        setCurrentView(defaultView(nextSession.role));
+        setAuthState('ready');
+        setAuthError('');
+        return;
+      }
+      setAuthState('manual');
+      setAuthError('message' in result ? result.message : 'Innlogging feilet.');
+    } catch {
+      setAuthState('manual');
+      setAuthError('Kunne ikke kontakte AD-innloggingen. Prov igjen.');
     }
-    setAuthError('message' in result ? result.message : 'Innlogging feilet.');
   }
 
   const visibleTickets = useMemo(() => {
@@ -144,7 +128,7 @@ export default function App() {
   );
 }
 
-function sessionFromResult(result: Extract<Awaited<ReturnType<typeof bootstrapAuth>>, { status: 'auto_login_ok' | 'manual_login_ok' }>): Session {
+function sessionFromResult(result: Extract<Awaited<ReturnType<typeof manualLogin>>, { status: 'manual_login_ok' }>): Session {
   return {
     username: result.username,
     role: normalizeRole(result.role),

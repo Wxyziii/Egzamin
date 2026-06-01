@@ -6,7 +6,7 @@ Date: 2026-06-01
 
 The Ubuntu-side HelpDesk deployment was completed where it can be completed from the server. Apache GSSAPI/Kerberos support is installed and enabled, `/etc/krb5.conf` has been replaced with the lab Kerberos configuration, the keytab was verified, the C++ CGI backend and React frontend were rebuilt and redeployed, and Apache was reloaded/restarted successfully.
 
-Automatic login is configured on the server, but it is not fully end-to-end verified until a domain-joined Windows client logged in as `SKOLE\marcel` tests the browser flow.
+Update: Kerberos/SSO was later disabled for exam stability. Traditional AD username/password login through `/cgi-bin/ad-login` is now the active flow, role detection still comes from AD groups, and C++ audit logging was added for login attempts.
 
 No passwords, keytabs, LDAP secrets, or copied private system config files were committed.
 
@@ -88,7 +88,7 @@ START_TLS=0
 
 ## Apache Kerberos config
 
-Created and enabled `/etc/apache2/conf-available/helpdesk-kerberos.conf`:
+Historical setup created `/etc/apache2/conf-available/helpdesk-kerberos.conf`:
 
 ```apache
 <Location "/cgi-bin/ad-bootstrap">
@@ -101,7 +101,7 @@ Created and enabled `/etc/apache2/conf-available/helpdesk-kerberos.conf`:
 </Location>
 ```
 
-Only `/cgi-bin/ad-bootstrap` is protected by Kerberos. `/cgi-bin/ad-login` remains public so manual AD login still works as fallback.
+Current active setup: `helpdesk-kerberos` is disabled for exam stability, so `/cgi-bin/ad-bootstrap` is no longer Kerberos-protected. `/cgi-bin/ad-login` is the active manual AD login endpoint.
 
 Apache validation/restart:
 
@@ -173,7 +173,7 @@ The deployed `/var/www/helpdesk/index.html` hash matches the fresh `frontend/dis
 ef88d517f7c135f811a711fd0e440be4a7b6e4ce14f53fb3a7e4aa029729bd16
 ```
 
-## Live endpoint tests
+## Historical live endpoint tests
 
 Frontend:
 
@@ -197,7 +197,7 @@ Content-Type: application/json
 {"status":"login_failed","message":"Username and password are required"}
 ```
 
-Kerberos bootstrap endpoint with plain curl:
+At the time of Kerberos testing, bootstrap with plain curl returned:
 
 ```text
 GET http://helpdesk.skole.local/cgi-bin/ad-bootstrap
@@ -205,7 +205,7 @@ HTTP/1.1 401 Unauthorized
 WWW-Authenticate: Negotiate
 ```
 
-This is expected for plain curl because `/cgi-bin/ad-bootstrap` now requires Kerberos.
+That was expected while Kerberos protection was enabled. In the current traditional-login setup, `/cgi-bin/ad-bootstrap` returns JSON saying manual login is required.
 
 Negotiated curl from the server still returned `401 Unauthorized`, even after validating the server keytab. That does not prove the browser flow is broken because this is not the real domain-user client flow. It only shows that the local service-principal/root-cache curl test did not complete a usable user login.
 
@@ -217,26 +217,25 @@ Negotiated curl from the server still returned `401 Unauthorized`, even after va
 - `kinit` with the Apache keytab succeeds.
 - `/etc/helpdesk-ldap.conf` exists with secure `root:www-data` ownership and `640` permissions.
 - LDAP non-secret values match the expected lab values.
-- `/etc/apache2/conf-available/helpdesk-kerberos.conf` protects only `/cgi-bin/ad-bootstrap`.
+- Kerberos/GSSAPI packages and keytab validation worked during setup.
 - Apache config test passes and Apache is active.
 - C++ CGI backend builds and is deployed.
 - Frontend builds and is deployed.
 - `/cgi-bin/ad-login` remains reachable without Kerberos.
-- `/cgi-bin/ad-bootstrap` now challenges with Kerberos instead of returning public JSON.
+- Current active flow uses traditional AD login through `/cgi-bin/ad-login`; `/cgi-bin/ad-bootstrap` is a compatibility JSON endpoint.
 
 ## What could not be fully verified
 
-- Automatic login as `SKOLE\marcel` was not fully verified because that requires a domain-joined Windows client/browser session.
-- Manual login as `marcel` was not password-tested because no AD user password was used or documented.
-- The local `curl --negotiate` test did not complete a successful `ad-bootstrap` login and returned `401`; the final required test is still the Windows domain-client browser flow.
+- Automatic login as `SKOLE\marcel` was not fully verified and was later disabled for exam stability.
+- Manual login as `marcel` still requires real AD password testing by the user.
+- The final active test should be traditional AD login through `/cgi-bin/ad-login`, not Kerberos SSO.
 
-## Required Windows domain-client verification
+## Required manual verification
 
-1. Log in to a Windows domain client as `SKOLE\marcel`.
-2. Open `http://helpdesk.skole.local` in a browser configured for Integrated Windows Authentication.
-3. Confirm the browser can negotiate Kerberos for `/cgi-bin/ad-bootstrap`.
-4. Confirm the returned session maps `marcel` to role `support`.
-5. Confirm the frontend shows the support UI.
-6. Test `/cgi-bin/ad-login` from the HelpDesk manual login screen as fallback and confirm role `support`.
+1. Open `http://helpdesk.skole.local`.
+2. Log in with AD user `marcel`.
+3. Confirm `/cgi-bin/ad-login` returns role `support`.
+4. Confirm the frontend shows the support UI.
+5. Confirm `/var/log/helpdesk-auth.log` gets `user=marcel | result=success | role=support`.
 
-Do not claim automatic login is fully verified until these client-side checks pass.
+Do not claim successful AD login is fully verified until the real AD password test passes.

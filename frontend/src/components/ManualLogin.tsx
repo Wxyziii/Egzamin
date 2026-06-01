@@ -26,7 +26,7 @@ export default function ManualLogin({ error, onLogin }: Props) {
         </div>
         <form className="state-panel" onSubmit={submit}>
           <h1>Logg inn med AD-bruker</h1>
-          <p>Automatisk rolleoppslag fant ingen gyldig rolle. Rollen hentes fortsatt fra AD-grupper.</p>
+          <p>Skriv inn AD-brukernavn og passord. Rollen hentes fra AD-grupper av C++-backenden.</p>
           <label>Brukernavn <input value={username} onChange={event => setUsername(event.target.value)} autoComplete="username" required /></label>
           <label>Passord <input value={password} onChange={event => setPassword(event.target.value)} type="password" autoComplete="current-password" required /></label>
           <div className="error-message">{error}</div>

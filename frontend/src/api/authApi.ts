@@ -1,6 +1,5 @@
 import type { AuthResponse, Role } from '../types/helpdesk';
 
-const BOOTSTRAP_URL = '/cgi-bin/ad-bootstrap';
 const LOGIN_URL = '/cgi-bin/ad-login';
 
 const mockUsers: Record<string, { password: string; role: Role; matchedGroup: string }> = {
@@ -10,19 +9,6 @@ const mockUsers: Record<string, { password: string; role: Role; matchedGroup: st
 };
 
 const useMockAuth = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_AUTH !== 'false';
-
-export async function bootstrapAuth(): Promise<AuthResponse> {
-  if (useMockAuth) {
-    // Local Windows/Vite development only. Production Apache builds call the real C++ CGI endpoint.
-    return {
-      status: 'manual_login_required',
-      message: 'Could not find AD role automatically'
-    };
-  }
-
-  const response = await fetch(BOOTSTRAP_URL, { headers: { Accept: 'application/json' } });
-  return parseAuthResponse(response, 'Automatic AD login failed.');
-}
 
 export async function manualLogin(username: string, password: string): Promise<AuthResponse> {
   if (useMockAuth) {
