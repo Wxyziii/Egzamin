@@ -6,7 +6,10 @@ cpp-backend/build/
 .env
 .env.*
 *.keytab
+krb5.keytab
 helpdesk-ldap.conf
 *ldap*.conf
 *password*
 *secret*
+*.secret
+*.local
