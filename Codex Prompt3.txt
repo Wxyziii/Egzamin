@@ -1,0 +1,281 @@
+You are working on my HelpDesk exam project on the Ubuntu helpdesk server.
+
+Goal:
+Finish all Ubuntu-side setup for AD/Kerberos automatic login, verify the deployed HelpDesk system, create/update documentation explaining everything you did, then commit and push the changes to GitHub.
+
+This is not planning mode. Execute the work.
+
+Environment:
+
+* AD domain: skole.local
+* Kerberos realm: SKOLE.LOCAL
+* Domain Controller / DNS / KDC: 192.168.51.2
+* Ubuntu helpdesk server: 192.168.51.3
+* Website: http://helpdesk.skole.local
+* Frontend source: /opt/helpdesk-app/frontend
+* Frontend deploy path: /var/www/helpdesk
+* C++ CGI backend source: /opt/helpdesk-app/cpp-backend
+* CGI deploy path: /usr/lib/cgi-bin
+* CGI endpoints:
+
+  * /cgi-bin/ad-bootstrap
+  * /cgi-bin/ad-login
+* LDAP config: /etc/helpdesk-ldap.conf
+* Kerberos keytab: /etc/apache2/helpdesk.keytab
+* Expected keytab principal:
+  HTTP/helpdesk.[skole.local@SKOLE.LOCAL](mailto:skole.local@SKOLE.LOCAL)
+* AD groups:
+
+  * GG_HelpDesk_Admin -> admin
+  * GG_HelpDesk_Support -> support
+  * GG_HelpDesk_User -> user
+* Test AD user:
+
+  * marcel
+  * expected role: support
+
+Critical security rules:
+
+* Never commit secrets.
+* Never commit /etc/helpdesk-ldap.conf.
+* Never commit /etc/apache2/helpdesk.keytab.
+* Never commit passwords, keytabs, private .env files, or copied system config files containing secrets.
+* If documentation mentions secrets, use placeholders such as <LDAP_BIND_PASSWORD> or <KEYTAB_FILE>.
+* Before committing, inspect git status and staged files carefully.
+
+Tasks:
+
+1. Inspect current repository and deployment state.
+   Run and record useful results:
+
+* pwd
+* git status
+* node -v
+* npm -v
+* apache2ctl -M | grep -E "cgi|gssapi"
+* ls -la /usr/lib/cgi-bin/
+* ls -la /etc/apache2/helpdesk.keytab
+* sudo klist -k /etc/apache2/helpdesk.keytab
+* curl -i http://helpdesk.skole.local/
+* curl -i http://helpdesk.skole.local/cgi-bin/ad-bootstrap
+* curl -i http://helpdesk.skole.local/cgi-bin/ad-login
+
+2. Install and enable Apache Kerberos/GSSAPI on Ubuntu.
+   Run:
+   sudo apt update
+   sudo apt install -y krb5-user libapache2-mod-auth-gssapi
+   sudo a2enmod cgi
+   sudo a2enmod auth_gssapi
+   sudo a2enconf serve-cgi-bin
+
+3. Verify and fix /etc/krb5.conf.
+   Ensure it contains the correct lab Kerberos setup:
+
+[libdefaults]
+default_realm = SKOLE.LOCAL
+dns_lookup_realm = false
+dns_lookup_kdc = false
+rdns = false
+
+[realms]
+SKOLE.LOCAL = {
+kdc = 192.168.51.2
+admin_server = 192.168.51.2
+}
+
+[domain_realm]
+.skole.local = SKOLE.LOCAL
+skole.local = SKOLE.LOCAL
+
+4. Verify the Apache keytab.
+   Check:
+   sudo klist -k /etc/apache2/helpdesk.keytab
+
+It must contain:
+HTTP/helpdesk.[skole.local@SKOLE.LOCAL](mailto:skole.local@SKOLE.LOCAL)
+
+Fix permissions if needed:
+sudo chown root:www-data /etc/apache2/helpdesk.keytab
+sudo chmod 640 /etc/apache2/helpdesk.keytab
+
+Test it:
+sudo kinit -k -t /etc/apache2/helpdesk.keytab HTTP/helpdesk.[skole.local@SKOLE.LOCAL](mailto:skole.local@SKOLE.LOCAL)
+klist
+
+If kinit fails, document the exact error and continue only with safe checks. Do not generate a new keytab from Ubuntu.
+
+5. Create or update Apache Kerberos config.
+   Create:
+   /etc/apache2/conf-available/helpdesk-kerberos.conf
+
+Content:
+
+<Location "/cgi-bin/ad-bootstrap">
+AuthType GSSAPI
+AuthName "Helpdesk Kerberos Login"
+GssapiCredStore keytab:/etc/apache2/helpdesk.keytab
+GssapiLocalName On
+GssapiSSLonly Off
+Require valid-user </Location>
+
+Important:
+
+* Protect only /cgi-bin/ad-bootstrap.
+* Do not protect /cgi-bin/ad-login, because manual AD login must remain available as fallback.
+
+Enable and restart:
+sudo a2enconf helpdesk-kerberos
+sudo apache2ctl configtest
+sudo systemctl restart apache2
+
+6. Verify LDAP config permissions.
+   Check that /etc/helpdesk-ldap.conf exists.
+   Do not print the password.
+   Make it readable by Apache but not world-readable:
+   sudo chown root:www-data /etc/helpdesk-ldap.conf
+   sudo chmod 640 /etc/helpdesk-ldap.conf
+
+Expected non-secret values:
+
+* LDAP_URI=ldap://192.168.51.2
+* BASE_DN=DC=skole,DC=local
+* USER_DOMAIN=skole.local
+* START_TLS=0
+
+7. Build and deploy C++ CGI backend.
+   Go to:
+   /opt/helpdesk-app/cpp-backend
+
+Run:
+cmake -S . -B build
+cmake --build build
+
+Deploy:
+sudo install -m 0755 build/ad-bootstrap /usr/lib/cgi-bin/ad-bootstrap
+sudo install -m 0755 build/ad-login /usr/lib/cgi-bin/ad-login
+
+Then:
+sudo apache2ctl configtest
+sudo systemctl restart apache2
+
+Test:
+curl -i http://helpdesk.skole.local/cgi-bin/ad-bootstrap
+curl -i http://helpdesk.skole.local/cgi-bin/ad-login
+
+Expected:
+
+* No 404.
+* ad-login remains reachable without Kerberos.
+* ad-bootstrap may return 401 from plain curl if no Kerberos negotiation is provided. That is acceptable.
+* If curl with negotiation works, test:
+  curl -i --negotiate -u : http://helpdesk.skole.local/cgi-bin/ad-bootstrap
+
+8. Build and redeploy frontend.
+   Go to:
+   /opt/helpdesk-app/frontend
+
+Run:
+npm install
+npm run build
+
+Deploy:
+sudo rsync -a --delete dist/ /var/www/helpdesk/
+sudo chown -R www-data:www-data /var/www/helpdesk
+sudo chmod -R 755 /var/www/helpdesk
+sudo systemctl reload apache2
+
+Test:
+curl -i http://helpdesk.skole.local/
+
+9. Fix frontend error handling if needed.
+   If frontend can still crash with:
+   Unexpected token '<', "<!DOCTYPE ..." is not valid JSON
+
+Update frontend fetch handling so non-JSON responses from CGI/Apache produce a clean visible error message instead of crashing.
+Then rebuild and redeploy.
+
+10. Create/update documentation.
+    Create or update:
+    docs/deployment-and-ad-role-detection-report.md
+
+The document must include:
+
+* Overview of the HelpDesk deployment
+* Network/IP overview
+* AD group to role mapping
+* LDAP manual login explanation
+* Kerberos automatic login explanation
+* Ubuntu files/configs used
+* Commands run
+* Test results
+* What works
+* What still requires manual Windows domain-client verification
+* Troubleshooting for:
+
+  * 404 on /cgi-bin/ad-bootstrap or /cgi-bin/ad-login
+  * Could not contact Active Directory
+  * Kerberos automatic login not working
+  * Wrong AD role returned
+  * Frontend JSON parsing errors from HTML error pages
+
+Include a section named:
+Eksamen forklaring
+
+Write that section in simple Norwegian. Explain:
+
+* Active Directory stores users and groups.
+* The C++ CGI backend checks AD through LDAP.
+* AD groups decide the HelpDesk role automatically.
+* Apache Kerberos/GSSAPI can provide automatic login by setting REMOTE_USER for /cgi-bin/ad-bootstrap.
+* Manual AD login through /cgi-bin/ad-login works as fallback.
+* The frontend uses the returned role to show user, support, or admin UI.
+
+11. Git safety check.
+    Before staging, run:
+    git status
+    git diff --stat
+
+Ensure these are not staged or committed:
+
+* keytab files
+* passwords
+* /etc/helpdesk-ldap.conf
+* /etc/apache2/helpdesk.keytab
+* private .env files
+* any copied system config containing secrets
+
+Update .gitignore if needed to block:
+*.keytab
+.env
+.env.*
+helpdesk-ldap.conf
+krb5.keytab
+*.secret
+*.local
+
+12. Commit and push.
+    You must commit and push the safe repository changes.
+
+Run:
+git add .
+git status
+
+If git status shows secrets staged, unstage them immediately.
+
+Commit:
+git commit -m "Finish Ubuntu AD role detection deployment"
+
+Push:
+git push
+
+13. Final output.
+    After pushing, print:
+
+* What you changed
+* What tests passed
+* What tests failed or still need Windows domain-client verification
+* Documentation file path
+* Commit hash
+* Push result
+
+Do not claim automatic login is fully verified unless it was tested from a domain-joined Windows client logged in as SKOLE\marcel.
