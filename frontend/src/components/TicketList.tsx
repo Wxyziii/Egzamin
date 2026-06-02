@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import type { Ticket } from '../types/helpdesk';
 import { avatarColor, initials, relativeTime, statusClasses } from './helpers';
 
@@ -9,21 +10,29 @@ type Props = {
 };
 
 export default function TicketList({ title, tickets, selectedTicketId, onSelect }: Props) {
+  const [filter, setFilter] = useState<'All' | 'Open' | 'Waiting' | 'Resolved'>('All');
+  const visibleTickets = useMemo(() => {
+    if (filter === 'All') return tickets;
+    return tickets.filter(ticket => ticket.status === filter);
+  }, [filter, tickets]);
+  const filterTabs = ['All', 'Open', 'Waiting', 'Resolved'] as const;
+
   return (
     <div className="ticket-list-panel">
       <div className="panel-header">
         <div className="panel-title">{title}</div>
-        <span className="badge badge-tag">{tickets.length}</span>
+        <span className="badge badge-tag">{visibleTickets.length}</span>
       </div>
       <div className="filter-tabs">
-        <button className="filter-tab active" type="button">All</button>
-        <button className="filter-tab" type="button">Open</button>
-        <button className="filter-tab" type="button">Waiting</button>
-        <button className="filter-tab" type="button">Resolved</button>
+        {filterTabs.map(item => (
+          <button key={item} className={`filter-tab ${filter === item ? 'active' : ''}`} type="button" onClick={() => setFilter(item)}>
+            {item}
+          </button>
+        ))}
       </div>
       <div className="ticket-scroll">
-        {tickets.length === 0 && <div className="empty-state">Ingen saker i denne visningen.</div>}
-        {tickets.map(ticket => (
+        {visibleTickets.length === 0 && <div className="empty-state">Ingen saker i denne visningen.</div>}
+        {visibleTickets.map(ticket => (
           <button key={ticket.id} className={`ticket-item ${ticket.id === selectedTicketId ? 'selected' : ''}`} type="button" onClick={() => onSelect(ticket.id)}>
             <div className="ticket-top">
               <div className="ticket-avatar" style={{ background: avatarColor(ticket.createdBy) }}>{initials(ticket.createdBy)}</div>

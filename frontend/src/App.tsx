@@ -63,6 +63,17 @@ export default function App() {
     system: 'OK'
   }), [session, store.state.tickets]);
 
+  function exportBackup() {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const blob = new Blob([JSON.stringify(store.state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `deskflow-backup-${stamp}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (authState === 'manual') return <ManualLogin error={authError} onLogin={handleLogin} />;
   if (!session) return null;
 
@@ -89,6 +100,8 @@ export default function App() {
           query={query}
           onQueryChange={setQuery}
           onCreate={() => setCurrentView('create')}
+          canExportBackup={normalizeRole(session.role) !== 'user'}
+          onExportBackup={exportBackup}
         />
         <NotificationBanner notifications={store.state.notifications} session={session} />
         <section className="content-area">

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { canCreateInternalNotes, normalizeRole } from '../components/helpers';
+import { calculateDueAt, canCreateInternalNotes, normalizeRole } from '../components/helpers';
 import { seedState } from '../data/seedData';
 import type {
   HelpdeskState,
@@ -8,6 +8,7 @@ import type {
   Role,
   Session,
   Ticket,
+  TicketActivity,
   TicketMessage,
   Priority,
   TicketStatus
@@ -20,18 +21,38 @@ function id(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function activity(type: TicketActivity['type'], actor: string, text: string, createdAt: string, internal = false): TicketActivity {
+  return {
+    id: id('ACT'),
+    type,
+    actor,
+    text,
+    createdAt,
+    internal
+  };
+}
+
+function normalizeTicket(ticket: Ticket): Ticket {
+  return {
+    ...ticket,
+    dueAt: ticket.dueAt ?? calculateDueAt(ticket.priority, ticket.createdAt),
+    activity: ticket.activity?.length ? ticket.activity : [activity('created', ticket.createdBy, `Ticket created by ${ticket.createdBy}`, ticket.createdAt)]
+  };
+}
+
 export function loadState(): HelpdeskState {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return seedState;
+  if (!raw) return { ...seedState, tickets: seedState.tickets.map(normalizeTicket) };
   try {
     const parsed = JSON.parse(raw) as HelpdeskState;
+    const tickets = (parsed.tickets?.length ? parsed.tickets : seedState.tickets).map(normalizeTicket);
     return {
-      tickets: parsed.tickets?.length ? parsed.tickets : seedState.tickets,
+      tickets,
       notifications: parsed.notifications ?? [],
-      selectedTicketId: parsed.selectedTicketId ?? parsed.tickets?.[0]?.id
+      selectedTicketId: parsed.selectedTicketId ?? tickets[0]?.id
     };
   } catch {
-    return seedState;
+    return { ...seedState, tickets: seedState.tickets.map(normalizeTicket) };
   }
 }
 
@@ -126,6 +147,8 @@ export function useHelpdeskStore(session: Session | null) {
           body: input.description,
           createdAt: now
         }],
+        activity: [activity('created', session.username, `Ticket created by ${session.username}`, now)],
+        dueAt: calculateDueAt(input.priority, now),
         createdAt: now,
         updatedAt: now
       };
@@ -153,7 +176,8 @@ export function useHelpdeskStore(session: Session | null) {
             role: 'system',
             body: text,
             createdAt: now
-          }]
+          }],
+          activity: [...item.activity, activity('claimed', session.username, `Ticket claimed by ${session.username}`, now)]
         } : item),
         notifications: owner ? [{
           id: id('NTF'),
@@ -175,6 +199,16 @@ export function useHelpdeskStore(session: Session | null) {
       tickets: current.tickets.map(ticket => ticket.id === ticketId ? {
         ...ticket,
         updatedAt: now,
+        activity: [
+          ...ticket.activity,
+          activity(
+            safeInternal ? 'internal_note' : 'reply',
+            session.username,
+            safeInternal ? 'Internal note added' : 'Public reply added',
+            now,
+            safeInternal
+          )
+        ],
         messages: [...ticket.messages, {
           id: id('MSG'),
           author: session.username,
@@ -188,20 +222,33 @@ export function useHelpdeskStore(session: Session | null) {
   }, [persist, session]);
 
   const changeTicketStatus = useCallback((ticketId: string, status: TicketStatus) => {
+    if (!session) return;
     const now = new Date().toISOString();
     persist(current => ({
       ...current,
-      tickets: current.tickets.map(ticket => ticket.id === ticketId ? { ...ticket, status, updatedAt: now } : ticket)
+      tickets: current.tickets.map(ticket => ticket.id === ticketId ? {
+        ...ticket,
+        status,
+        updatedAt: now,
+        activity: [...ticket.activity, activity('status', session.username, `Status changed from ${ticket.status} to ${status}`, now)]
+      } : ticket)
     }));
-  }, [persist]);
+  }, [persist, session]);
 
   const changeTicketPriority = useCallback((ticketId: string, priority: Priority) => {
+    if (!session) return;
     const now = new Date().toISOString();
     persist(current => ({
       ...current,
-      tickets: current.tickets.map(ticket => ticket.id === ticketId ? { ...ticket, priority, updatedAt: now } : ticket)
+      tickets: current.tickets.map(ticket => ticket.id === ticketId ? {
+        ...ticket,
+        priority,
+        dueAt: calculateDueAt(priority, now),
+        updatedAt: now,
+        activity: [...ticket.activity, activity('priority', session.username, `Priority changed from ${ticket.priority} to ${priority}`, now)]
+      } : ticket)
     }));
-  }, [persist]);
+  }, [persist, session]);
 
   const selectedTicket = useMemo(
     () => state.tickets.find(ticket => ticket.id === state.selectedTicketId) ?? state.tickets[0],

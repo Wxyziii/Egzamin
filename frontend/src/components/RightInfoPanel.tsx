@@ -1,13 +1,14 @@
 import type { Session, Ticket } from '../types/helpdesk';
-import { avatarColor, canSeeInternalNotes, initials, normalizeRole, priorityClass, statusClasses } from './helpers';
+import { avatarColor, canSeeInternalNotes, getSlaStatus, initials, normalizeRole, priorityClass, slaBadgeClass, statusClasses } from './helpers';
 
 export default function RightInfoPanel({ ticket, session, ticketCountForOwner }: { ticket: Ticket; session: Session; ticketCountForOwner: number }) {
   const normalizedRole = normalizeRole(session.role);
   const canSeeInternal = canSeeInternalNotes(normalizedRole);
-  const lastVisibleMessage = canSeeInternal
-    ? ticket.messages[ticket.messages.length - 1]
-    : [...ticket.messages].reverse().find(message => !message.internal);
-  const hiddenInternalLatest = !canSeeInternal && ticket.messages[ticket.messages.length - 1]?.internal;
+  const slaStatus = getSlaStatus(ticket);
+  const visibleActivity = (ticket.activity ?? [])
+    .filter(item => canSeeInternal || !item.internal)
+    .slice(-5)
+    .reverse();
   return (
     <aside className="detail-sidebar">
       <div>
@@ -23,8 +24,17 @@ export default function RightInfoPanel({ ticket, session, ticketCountForOwner }:
         <div className="ds-field"><div className="ds-label">Channel</div><div className="ds-value">Web portal</div></div>
         <div className="ds-field">
           <div className="ds-label">SLA</div>
-          <div className="ds-value" style={{ color: ticket.status === 'Resolved' ? 'var(--green)' : 'var(--red)' }}>{ticket.status === 'Resolved' ? 'Completed' : 'Active case'}</div>
-          <div className="progress-bar"><div className="progress-fill" style={{ width: ticket.status === 'Resolved' ? '100%' : '62%', background: ticket.status === 'Resolved' ? 'var(--green)' : 'var(--red)' }} /></div>
+          <span className={`badge ${slaBadgeClass(slaStatus)}`}>{slaStatus}</span>
+          <div className="ds-value" style={{ marginTop: 6 }}>Due {new Date(ticket.dueAt).toLocaleString('nb-NO')}</div>
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{
+                width: slaStatus === 'Overdue' ? '100%' : slaStatus === 'Due soon' ? '82%' : '42%',
+                background: slaStatus === 'Overdue' ? 'var(--red)' : slaStatus === 'Due soon' ? 'var(--amber)' : 'var(--green)'
+              }}
+            />
+          </div>
         </div>
       </div>
       <div className="sep" />
@@ -52,32 +62,25 @@ export default function RightInfoPanel({ ticket, session, ticketCountForOwner }:
         <div className="tag-list">
           <span className="tag-item">{ticket.category.toLowerCase()}</span>
           <span className="tag-item">{ticket.priority.toLowerCase()}</span>
-          <span className="tag-item">ad-helpdesk</span>
+          <span className="tag-item">deskflow</span>
         </div>
       </div>
       <div className="sep" />
       <div>
         <div className="ds-section-title">Activity</div>
         <div className="timeline">
-          <div className="timeline-item">
-            <div className="timeline-dot accent"><svg viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3"/></svg></div>
-            <div className="timeline-line" />
-            <div className="timeline-text">
-              <div className="timeline-action">
-                {hiddenInternalLatest ? 'Support updated the ticket' : <><strong>{lastVisibleMessage?.author ?? ticket.createdBy}</strong> updated ticket</>}
+          {visibleActivity.map((item, index) => (
+            <div className="timeline-item" key={item.id}>
+              <div className={`timeline-dot ${index === 0 ? 'accent' : ''}`}>
+                <svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" /></svg>
               </div>
-              <div className="timeline-time">{lastVisibleMessage ? new Date(lastVisibleMessage.createdAt).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+              {index < visibleActivity.length - 1 && <div className="timeline-line" />}
+              <div className="timeline-text">
+                <div className="timeline-action"><strong>{item.actor}</strong> · {item.text}</div>
+                <div className="timeline-time">{new Date(item.createdAt).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })}</div>
+              </div>
             </div>
-          </div>
-          <div className="timeline-item">
-            <div className="timeline-dot"><svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3"/></svg></div>
-            <div className="timeline-line" />
-            <div className="timeline-text"><div className="timeline-action">{ticket.assignedTo ? <>Assigned to <strong>{ticket.assignedTo}</strong></> : 'Waiting for support claim'}</div><div className="timeline-time">{ticket.assignedTo ? 'Claimed' : 'Queue'}</div></div>
-          </div>
-          <div className="timeline-item">
-            <div className="timeline-dot"><svg viewBox="0 0 10 10"><path d="M3 2h4M5 2v6M2 8h6"/></svg></div>
-            <div className="timeline-text"><div className="timeline-action">Ticket created by <strong>{ticket.createdBy}</strong></div><div className="timeline-time">{new Date(ticket.createdAt).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })}</div></div>
-          </div>
+          ))}
         </div>
       </div>
     </aside>

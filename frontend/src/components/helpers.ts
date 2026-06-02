@@ -37,6 +37,37 @@ export function priorityClass(priority: Priority) {
   return 'p-low';
 }
 
+const slaHours: Record<Priority, number> = {
+  Urgent: 4,
+  High: 4,
+  Medium: 24,
+  Low: 72
+};
+
+export type SlaStatus = 'Within SLA' | 'Due soon' | 'Overdue';
+
+export function calculateDueAt(priority: Priority, from = new Date().toISOString()) {
+  const due = new Date(from);
+  due.setHours(due.getHours() + slaHours[priority]);
+  return due.toISOString();
+}
+
+export function getSlaStatus(ticket: Pick<Ticket, 'dueAt' | 'status'>): SlaStatus {
+  if (ticket.status === 'Resolved') return 'Within SLA';
+  const dueTime = new Date(ticket.dueAt).getTime();
+  const now = Date.now();
+  if (Number.isNaN(dueTime)) return 'Within SLA';
+  if (now > dueTime) return 'Overdue';
+  const hoursLeft = (dueTime - now) / 3600000;
+  return hoursLeft <= 2 ? 'Due soon' : 'Within SLA';
+}
+
+export function slaBadgeClass(status: SlaStatus) {
+  if (status === 'Overdue') return 'badge-urgent';
+  if (status === 'Due soon') return 'badge-pending';
+  return 'badge-resolved';
+}
+
 export function normalizeRole(role: string): Role {
   if (role === 'GG_HelpDesk_Admin' || role === 'admin') return 'admin';
   if (role === 'GG_HelpDesk_Support' || role === 'support') return 'support';

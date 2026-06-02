@@ -1,6 +1,10 @@
 import type { HelpdeskState, Ticket } from '../types/helpdesk';
+import { calculateDueAt } from '../components/helpers';
 
 const now = Date.now();
+const firstTicketCreatedAt = new Date(now - 20 * 60 * 1000).toISOString();
+const secondTicketCreatedAt = new Date(now - 90 * 60 * 1000).toISOString();
+const secondTicketUpdatedAt = new Date(now - 70 * 60 * 1000).toISOString();
 
 export const seedTickets: Ticket[] = [
   {
@@ -17,11 +21,19 @@ export const seedTickets: Ticket[] = [
         author: 'user1',
         role: 'user',
         body: 'Kontoen min er last etter passordbytte. Kan dere hjelpe?',
-        createdAt: new Date(now - 20 * 60 * 1000).toISOString()
+        createdAt: firstTicketCreatedAt
       }
     ],
-    createdAt: new Date(now - 20 * 60 * 1000).toISOString(),
-    updatedAt: new Date(now - 20 * 60 * 1000).toISOString()
+    activity: [{
+      id: 'ACT-1',
+      type: 'created',
+      actor: 'user1',
+      text: 'Ticket created by user1',
+      createdAt: firstTicketCreatedAt
+    }],
+    dueAt: calculateDueAt('Urgent', firstTicketCreatedAt),
+    createdAt: firstTicketCreatedAt,
+    updatedAt: firstTicketCreatedAt
   },
   {
     id: 'TK-2042',
@@ -38,18 +50,42 @@ export const seedTickets: Ticket[] = [
         author: 'kari',
         role: 'user',
         body: 'Printeren viser online, men ingen utskrifter kommer.',
-        createdAt: new Date(now - 90 * 60 * 1000).toISOString()
+        createdAt: secondTicketCreatedAt
       },
       {
         id: 'MSG-3',
         author: 'support1',
         role: 'support',
         body: 'Jeg sjekker print queue og driver pa serveren.',
-        createdAt: new Date(now - 70 * 60 * 1000).toISOString()
+        createdAt: secondTicketUpdatedAt
       }
     ],
-    createdAt: new Date(now - 90 * 60 * 1000).toISOString(),
-    updatedAt: new Date(now - 70 * 60 * 1000).toISOString()
+    activity: [
+      {
+        id: 'ACT-2',
+        type: 'created',
+        actor: 'kari',
+        text: 'Ticket created by kari',
+        createdAt: secondTicketCreatedAt
+      },
+      {
+        id: 'ACT-3',
+        type: 'claimed',
+        actor: 'support1',
+        text: 'Ticket claimed by support1',
+        createdAt: secondTicketUpdatedAt
+      },
+      {
+        id: 'ACT-4',
+        type: 'reply',
+        actor: 'support1',
+        text: 'Public reply added',
+        createdAt: secondTicketUpdatedAt
+      }
+    ],
+    dueAt: calculateDueAt('Medium', secondTicketCreatedAt),
+    createdAt: secondTicketCreatedAt,
+    updatedAt: secondTicketUpdatedAt
   }
 ];
 

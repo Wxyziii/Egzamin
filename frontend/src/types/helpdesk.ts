@@ -36,6 +36,17 @@ export type TicketMessage = {
   internal?: boolean;
 };
 
+export type TicketActivityType = 'created' | 'claimed' | 'status' | 'priority' | 'reply' | 'internal_note';
+
+export type TicketActivity = {
+  id: string;
+  type: TicketActivityType;
+  actor: string;
+  text: string;
+  createdAt: string;
+  internal?: boolean;
+};
+
 export type Ticket = {
   id: string;
   title: string;
@@ -46,6 +57,8 @@ export type Ticket = {
   createdBy: string;
   assignedTo?: string;
   messages: TicketMessage[];
+  activity: TicketActivity[];
+  dueAt: string;
   createdAt: string;
   updatedAt: string;
 };
