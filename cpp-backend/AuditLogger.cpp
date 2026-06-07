@@ -50,10 +50,7 @@ std::filesystem::path logPath() {
 
 namespace AuditLogger {
 
-void logLoginAttempt(const std::string& username,
-                     bool success,
-                     const std::string& role,
-                     const std::string& ipAddress) {
+void logLoginAttempt(const std::string& username, bool success, const std::string& role, const std::string& ipAddress) {
     const auto path = logPath();
     if (path.has_parent_path()) {
         std::error_code ignored;
@@ -64,11 +61,11 @@ void logLoginAttempt(const std::string& username,
     if (!log) return;
 
     log << timestamp()
-        << " | user=" << clean(username.empty() ? "<empty>" : username)
-        << " | result=" << (success ? "success" : "failed")
-        << " | role=" << clean(role.empty() ? "none" : role)
-        << " | ip=" << clean(ipAddress.empty() ? "unknown" : ipAddress)
-        << '\n';
+    << " | user=" << clean(username.empty() ? "<empty>" : username)
+    << " | result=" << (success ? "success" : "failed")
+    << " | role=" << clean(role.empty() ? "none" : role)
+    << " | ip=" << clean(ipAddress.empty() ? "unknown" : ipAddress)
+    << '\n';
 }
 
 } // namespace AuditLogger
